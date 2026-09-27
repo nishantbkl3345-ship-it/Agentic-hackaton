@@ -10,6 +10,7 @@ import OperatorStatus from './components/OperatorStatus'
 import LiveOpsFeed from './components/LiveOpsFeed'
 import Achievements from './components/Achievements'
 import AttackConsole from './components/AttackConsole'
+import MissionPlatformer from './components/MissionPlatformer'
 import BreachSequence from './components/BreachSequence'
 import DefenderMode from './components/DefenderMode'
 import StatusBar, { scoreColor } from './components/StatusBar'
@@ -77,7 +78,7 @@ function MissionsPage({ operator }) {
   }
 
   const nextLevel = levels.find((l) => l.unlocked && !l.cleared) || null
-  const enter = (id) => navigate(`/mission/${id}`)
+  const enter = (id) => navigate(`/mission/${id}/play`)
 
   return (
     <div className="arena-dashboard">
@@ -337,6 +338,7 @@ export default function App() {
         <Route path="/signup" element={<Signup onAuthed={setOperator} xpToSave={operator?.xp_total || 0} />} />
         <Route path="/missions" element={<MissionsPage operator={operator} />} />
         <Route path="/mission/:levelId" element={<MissionArena operator={operator} onGuestMilestone={onGuestMilestone} />} />
+        <Route path="/mission/:levelId/play" element={<MissionPlatformer />} />
         <Route
           path="/leaderboard"
           element={(
