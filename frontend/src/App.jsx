@@ -21,6 +21,7 @@ import Onboarding from './components/Onboarding'
 import EventJoin from './components/EventJoin'
 import SaveYourRun from './components/SaveYourRun'
 import { JailbreakSelect, JailbreakArena } from './components/JailbreakGame'
+import AuditLab from './components/AuditLab'
 
 const EMPTY_REPORT = { score: 100, weak_spots_found: 0, confirmed_live: 0, map: [], findings: [], attacks: [] }
 
@@ -108,6 +109,23 @@ function MissionsPage({ operator }) {
             <div className="text-dim" style={{ fontSize: 13, marginTop: 2 }}>You type. It talks back. Break its rules with your own words.</div>
           </div>
           <span className="btn btn-primary">PLAY LIVE →</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate('/audit')}
+          style={{
+            width: '100%', textAlign: 'left', cursor: 'pointer', margin: '0 0 18px',
+            padding: '18px 22px', border: '1px solid var(--line-bright)', background: 'var(--panel)',
+            color: 'var(--ink)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <div className="mono text-accent" style={{ fontSize: 12, letterSpacing: 1 }}>📋 MODEL AUDIT · REPORT CARD</div>
+            <div style={{ fontWeight: 800, fontSize: 20, marginTop: 4 }}>BRING YOUR MODEL — grade it vs GPT-4o mini & Gemini</div>
+            <div className="text-dim" style={{ fontSize: 13, marginTop: 2 }}>Capability + security, one combined report.</div>
+          </div>
+          <span className="btn">AUDIT →</span>
         </button>
 
         <MissionPreview level={nextLevel} patches={nextPatches} onEnter={enter} />
@@ -348,6 +366,7 @@ export default function App() {
         <Route path="/missions" element={<MissionsPage operator={operator} />} />
         <Route path="/jailbreak" element={<JailbreakSelect operator={operator} />} />
         <Route path="/jailbreak/:tierId" element={<JailbreakArena operator={operator} />} />
+        <Route path="/audit" element={<AuditLab operator={operator} />} />
         <Route path="/mission/:levelId" element={<MissionArena operator={operator} onGuestMilestone={onGuestMilestone} />} />
         <Route
           path="/leaderboard"
