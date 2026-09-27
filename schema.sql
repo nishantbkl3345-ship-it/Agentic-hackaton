@@ -71,3 +71,52 @@ CREATE TABLE IF NOT EXISTS activity_log (
 );
 CREATE INDEX IF NOT EXISTS activity_log_ts_idx ON activity_log (ts DESC);
 CREATE INDEX IF NOT EXISTS activity_log_event_ts_idx ON activity_log (event_id, ts DESC);
+
+-- CRUCIBLE — AI testing engine. `target` never stores a bring-your-own API
+-- key (see app/crucible.py); target_key groups runs against "the same AI"
+-- for the before/after comparison picker.
+CREATE TABLE IF NOT EXISTS crucible_runs (
+    id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    operator_id   uuid NOT NULL REFERENCES operators(id) ON DELETE CASCADE,
+    target        jsonb NOT NULL,
+    target_key    text NOT NULL,
+    configuration jsonb NOT NULL,
+    status        text NOT NULL DEFAULT 'running',
+    scores        jsonb,
+    started_at    timestamptz NOT NULL DEFAULT now(),
+    completed_at  timestamptz
+);
+CREATE INDEX IF NOT EXISTS crucible_runs_target_idx ON crucible_runs (operator_id, target_key, started_at DESC);
+
+CREATE TABLE IF NOT EXISTS crucible_tests (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    run_id      uuid NOT NULL REFERENCES crucible_runs(id) ON DELETE CASCADE,
+    category    text NOT NULL,
+    test_type   text NOT NULL,
+    name        text NOT NULL,
+    input       jsonb,
+    expected    jsonb,
+    actual      jsonb,
+    status      text NOT NULL,
+    severity    text,
+    evidence    text,
+    reason      text,
+    latency_ms  integer,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS crucible_tests_run_idx ON crucible_tests (run_id, created_at);
+
+CREATE TABLE IF NOT EXISTS crucible_findings (
+    id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    run_id       uuid NOT NULL REFERENCES crucible_runs(id) ON DELETE CASCADE,
+    test_id      uuid REFERENCES crucible_tests(id) ON DELETE SET NULL,
+    category     text NOT NULL,
+    severity     text NOT NULL,
+    title        text NOT NULL,
+    description  text NOT NULL,
+    evidence     text,
+    remediation  text,
+    status       text NOT NULL DEFAULT 'open',
+    created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS crucible_findings_run_idx ON crucible_findings (run_id);

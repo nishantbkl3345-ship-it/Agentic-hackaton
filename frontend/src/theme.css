@@ -615,7 +615,7 @@ a { color: inherit; }
 .auth-shell { max-width: 420px; margin: 60px auto; }
 .auth-shell h2 { margin-bottom: 6px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
-.field input {
+.field input, .field select {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 14px;
   background: var(--void-deep);
@@ -623,7 +623,7 @@ a { color: inherit; }
   color: var(--ink);
   padding: 10px 12px;
 }
-.field input:focus { outline: none; border-color: var(--accent); }
+.field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
 .auth-shell .btn { width: 100%; margin-top: 20px; }
 .auth-switch { margin-top: 14px; text-align: center; }
 .form-error { color: var(--breach); font-size: 13px; margin-top: 10px; }
@@ -796,3 +796,119 @@ a { color: inherit; }
   .arena-columns { grid-template-columns: 1fr; }
   .mission-preview { grid-template-columns: 1fr; }
 }
+
+/* ---- CRUCIBLE ---- */
+.crucible-hero { margin: 10px 0 30px; }
+.crucible-tagline { font-size: 13px; letter-spacing: 3px; }
+.crucible-title { font-size: clamp(36px, 6vw, 58px); margin: 6px 0 8px; }
+
+.crucible-section { margin: 28px 0; }
+.crucible-section-title { margin-bottom: 14px; }
+
+.crucible-target-list { display: flex; flex-wrap: wrap; gap: 12px; }
+.crucible-target-option {
+  min-width: 200px; flex: 1 1 200px; cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.crucible-target-option:hover { border-color: var(--line-bright); }
+.crucible-target-option.selected { border-color: var(--accent); background: rgba(255, 106, 31, 0.08); }
+.crucible-target-option .name { font-weight: 700; margin-top: 4px; }
+
+.crucible-custom-form { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.crucible-custom-form .field { margin-top: 0; }
+@media (max-width: 640px) { .crucible-custom-form { grid-template-columns: 1fr; } }
+
+.crucible-config-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.crucible-toggle {
+  cursor: pointer; user-select: none; min-width: 150px; flex: 1 1 150px;
+  display: flex; align-items: center; justify-content: space-between;
+  transition: border-color 0.15s, opacity 0.15s;
+}
+.crucible-toggle.off { opacity: 0.45; }
+.crucible-toggle .name { font-weight: 700; }
+.crucible-toggle .check { font-family: 'IBM Plex Mono', monospace; }
+
+.crucible-depth-row { display: flex; gap: 10px; margin-top: 14px; }
+.crucible-depth-btn {
+  font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
+  padding: 10px 18px; border: 1px solid var(--line-bright); background: transparent; color: var(--ink-dim); cursor: pointer;
+}
+.crucible-depth-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(255, 106, 31, 0.08); }
+
+.crucible-run-btn { width: 100%; margin-top: 24px; }
+
+/* live console */
+.crucible-console-cat { margin-bottom: 22px; }
+.crucible-console-cat-title { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.crucible-test-row {
+  display: flex; gap: 10px; align-items: baseline; font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+  padding: 5px 0; border-bottom: 1px solid var(--line);
+}
+.crucible-test-icon { width: 18px; flex-shrink: 0; text-align: center; }
+.crucible-test-icon.pass { color: var(--safe); }
+.crucible-test-icon.confirmed { color: var(--breach); }
+.crucible-test-icon.notest { color: var(--ink-faint); }
+.crucible-console-running { color: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+
+/* score header */
+.crucible-score-hero { display: flex; gap: 40px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 28px; }
+.crucible-score-big { font-family: 'Anton', sans-serif; font-size: 72px; line-height: 1; }
+.crucible-score-grid { display: flex; gap: 28px; flex-wrap: wrap; }
+.crucible-score-cell .num { font-family: 'Anton', sans-serif; font-size: 32px; }
+
+/* findings */
+.crucible-finding { border-left: 4px solid var(--line-bright); margin-bottom: 12px; }
+.crucible-finding.CRITICAL, .crucible-finding.HIGH { border-left-color: var(--breach); }
+.crucible-finding.MEDIUM { border-left-color: var(--amber); }
+.crucible-finding.LOW { border-left-color: var(--ink-dim); }
+.crucible-finding-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; cursor: pointer; flex-wrap: wrap; }
+.crucible-finding-body { margin-top: 12px; font-size: 13px; }
+.crucible-finding-body .row { margin-top: 8px; }
+.crucible-finding-body .k { color: var(--ink-dim); margin-right: 6px; }
+.crucible-not-testable { color: var(--ink-faint); font-size: 12px; margin-top: 4px; }
+
+/* compare */
+.crucible-compare-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 14px; }
+.crucible-compare-table th { text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 1px; color: var(--ink-dim); padding: 8px 12px; border-bottom: 2px solid var(--line); }
+.crucible-compare-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.crucible-delta.up { color: var(--safe); }
+.crucible-delta.down { color: var(--breach); }
+.crucible-finding-list-title { margin: 18px 0 8px; }
+
+/* ---- loader (reused app-wide) ---- */
+.loader { display: inline-flex; align-items: center; gap: 10px; }
+.loader-glyph {
+  width: 13px; height: 13px; flex-shrink: 0;
+  border: 2px solid var(--line-bright);
+  border-top-color: var(--accent);
+  animation: loader-spin 0.7s linear infinite;
+}
+.loader-label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-dim); }
+@keyframes loader-spin { to { transform: rotate(360deg); } }
+.loader-block { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 70px 20px; }
+.loader-inline { display: inline-flex; margin-left: 8px; vertical-align: middle; }
+
+/* ---- crucible report ---- */
+.crucible-verdict { margin-bottom: 22px; }
+.crucible-verdict-answer { font-family: 'Anton', sans-serif; font-size: clamp(26px, 4vw, 40px); margin: 4px 0 10px; }
+.crucible-verdict-answer.trust { color: var(--safe); }
+.crucible-verdict-answer.caution { color: var(--amber); }
+.crucible-verdict-answer.distrust { color: var(--breach); }
+.crucible-summary-stats { display: flex; gap: 24px; flex-wrap: wrap; margin: 14px 0 6px; }
+.crucible-summary-stat .n { font-family: 'Anton', sans-serif; font-size: 22px; }
+
+.crucible-collapsible-head {
+  display: flex; align-items: center; justify-content: space-between; cursor: pointer;
+  padding: 4px 0;
+}
+.crucible-collapsible-head:hover { color: var(--accent); }
+.crucible-method-cat { margin: 16px 0; }
+.crucible-method-criterion { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.crucible-method-criterion .desc { font-size: 12px; color: var(--ink-dim); margin-top: 3px; }
+.crucible-method-test-row {
+  display: flex; gap: 10px; align-items: baseline; font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+  padding: 3px 0 3px 14px;
+}
+.crucible-recommend-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.crucible-recommend-item { display: flex; gap: 10px; font-size: 13px; align-items: flex-start; }
+.crucible-recommend-item .num { color: var(--accent); font-family: 'IBM Plex Mono', monospace; flex-shrink: 0; }

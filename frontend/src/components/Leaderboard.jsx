@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { apiJson } from '../api'
+import { LoaderBlock } from './Loader'
 
 export default function Leaderboard({ eventId, big }) {
   const [params, setParams] = useSearchParams()
   const sort = params.get('sort') === 'elo' ? 'elo' : 'xp'
   const [data, setData] = useState({ rows: [], you: null })
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -17,6 +19,8 @@ export default function Leaderboard({ eventId, big }) {
         if (alive) setData(d)
       } catch {
         // transient poll failure, keep last-known data
+      } finally {
+        if (alive) setLoaded(true)
       }
     }
     load()
@@ -35,6 +39,8 @@ export default function Leaderboard({ eventId, big }) {
         <button type="button" className={`btn-ghost ${sort === 'xp' ? 'active' : ''}`} onClick={() => setSort('xp')}>SORT BY XP</button>
         <button type="button" className={`btn-ghost ${sort === 'elo' ? 'active' : ''}`} onClick={() => setSort('elo')}>SORT BY ELO</button>
       </div>
+      {!loaded && <LoaderBlock label="LOADING STANDINGS" />}
+      {loaded && (
       <table className="leaderboard-table mono">
         <thead>
           <tr>
@@ -66,6 +72,7 @@ export default function Leaderboard({ eventId, big }) {
           )}
         </tbody>
       </table>
+      )}
     </div>
   )
 }
