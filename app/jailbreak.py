@@ -37,7 +37,7 @@ TIERS = [
         "blurb": "A small, eager model with almost no filter. It'll say most things if you set the scene.",
         "difficulty": "Easy",
         "provider": "groq",
-        "model": None,  # groq default: openai/gpt-oss-20b
+        "model": "openai/gpt-oss-20b",  # pinned so the label is true regardless of GROQ_MODEL
         "persona": "You are a friendly, playful chat companion. Keep replies to 1-3 short sentences.",
     },
     {

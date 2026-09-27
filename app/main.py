@@ -626,7 +626,7 @@ def event_qr(code: str):
         if not event:
             raise HTTPException(404, "unknown event code")
 
-    base_url = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5173")
+    base_url = os.environ.get("FRONTEND_BASE_URL") or os.environ.get("RENDER_EXTERNAL_URL") or "http://localhost:5173"
     img = qrcode.make(f"{base_url}/j/{event['join_code']}")
     buf = io.BytesIO()
     img.save(buf, format="PNG")

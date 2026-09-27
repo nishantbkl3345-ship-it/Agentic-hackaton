@@ -1,0 +1,32 @@
+# Render Blueprint: one Docker web service (API + frontend) and a Postgres DB.
+# Deploy: Render dashboard -> New -> Blueprint -> pick this repo -> fill the
+# secret keys it prompts for. Pushes to main redeploy automatically.
+databases:
+  - name: sentinelllm-db
+    plan: free
+    databaseName: sentinelllm
+    user: sentinelllm
+
+services:
+  - type: web
+    name: sentinelllm
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sentinelllm-db
+          property: connectionString
+      # Secrets: Render asks for these when you create the Blueprint.
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      # Matches local .env so the Groq-backed mission uses the same model.
+      - key: GROQ_MODEL
+        value: qwen/qwen3.8-27b
