@@ -144,6 +144,17 @@ def ask_model_with_tools(
         return _mock_reply(prompt, tools)
 
 
+def ask_custom_endpoint(prompt, system, api_key, model, base_url, max_tokens=400):
+    """Call an arbitrary OpenAI-compatible endpoint with an explicit key.
+
+    For the Model Audit "bring your own model" path: the candidate model may
+    live behind a key/URL the server doesn't have in its env. Returns reply
+    text; raises on transport errors so the caller can surface them.
+    """
+    text, _ = _call_openai_compatible(prompt, None, system, max_tokens, api_key, model, base_url)
+    return text
+
+
 def _call_anthropic(prompt, tools, system, max_tokens, api_key, model):
     payload = {
         "model": model,

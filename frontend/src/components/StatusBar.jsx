@@ -10,7 +10,7 @@ export function scoreColor(score) {
   return 'var(--safe)'
 }
 
-export default function StatusBar({ xp, onBack, backLabel = 'MISSIONS', error }) {
+export default function StatusBar({ xp = 0, onBack, backLabel = 'MISSIONS', error }) {
   return (
     <div className="status-bar">
       <div className="status-bar-left">
