@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { apiJson } from '../api'
 import { levelFromXp } from './StatusBar'
-import { FlagIcon, TargetIcon, SwordIcon, TrophyIcon, UserIcon } from './icons'
+import { FlagIcon, TargetIcon, SwordIcon, TrophyIcon, UserIcon, GridIcon } from './icons'
 import NetworkDiagram from './NetworkDiagram'
 import BreachSequence from './BreachSequence'
 import heroArena from '../assets/hero-arena.png'
@@ -86,6 +86,9 @@ export default function Landing({ xp, onEnter }) {
             </button>
             <Link to={`/mission/${nextLevelId}`} className="landing-nav-link">
               <SwordIcon width={15} height={15} /> Attack Lab
+            </Link>
+            <Link to="/mindgrid" className="landing-nav-link">
+              <GridIcon width={15} height={15} /> MindGrid
             </Link>
             <Link to="/leaderboard" className="landing-nav-link">
               <TrophyIcon width={15} height={15} /> Leaderboard
