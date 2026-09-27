@@ -89,3 +89,54 @@ export function BotIcon(props) {
     </svg>
   )
 }
+
+export function FlagIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M5 3v18" />
+      <path d="M5 4h13l-3 4 3 4H5" />
+    </svg>
+  )
+}
+
+export function TargetIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
+export function SwordIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 20l6-6" />
+      <path d="M8.5 15.5l-3-3 7-7 3 3z" />
+      <path d="M20 4l-6 6" />
+      <path d="M15.5 8.5l3 3-7 7-3-3z" />
+    </svg>
+  )
+}
+
+export function TrophyIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M7 4h10v5a5 5 0 0 1-10 0V4z" />
+      <path d="M7 5H4v2a3 3 0 0 0 3 3" />
+      <path d="M17 5h3v2a3 3 0 0 1-3 3" />
+      <path d="M12 14v3" />
+      <path d="M9 20h6" />
+      <path d="M9.5 17h5l.5 3H9z" />
+    </svg>
+  )
+}
+
+export function UserIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="8" r="3.2" />
+      <path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7" />
+    </svg>
+  )
+}

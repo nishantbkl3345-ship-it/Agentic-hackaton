@@ -1,5 +1,5 @@
 import NetworkDiagram from './NetworkDiagram'
-import { LEVEL_SURFACES, CATEGORY_BY_KIND } from './AttackSelect'
+import { LEVEL_SURFACES, CATEGORY_BY_KIND } from './AttackConsole'
 
 const DIFFICULTY_STARS = { Easy: 1, Medium: 2, Hard: 3, Boss: 4 }
 const MISSION_NO = { level1: '01', level2: '02', level3: '03', boss: 'X' }

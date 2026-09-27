@@ -9,7 +9,7 @@ import MissionPreview from './components/MissionPreview'
 import OperatorStatus from './components/OperatorStatus'
 import LiveOpsFeed from './components/LiveOpsFeed'
 import Achievements from './components/Achievements'
-import AttackSelect from './components/AttackSelect'
+import AttackConsole from './components/AttackConsole'
 import BreachSequence from './components/BreachSequence'
 import DefenderMode from './components/DefenderMode'
 import StatusBar, { scoreColor } from './components/StatusBar'
@@ -21,6 +21,8 @@ import Onboarding from './components/Onboarding'
 import EventJoin from './components/EventJoin'
 import SaveYourRun from './components/SaveYourRun'
 import MissionPlatformer from './components/MissionPlatformer'
+import { JailbreakSelect, JailbreakArena } from './components/JailbreakGame'
+import AuditLab from './components/AuditLab'
 
 const EMPTY_REPORT = { score: 100, weak_spots_found: 0, confirmed_live: 0, map: [], findings: [], attacks: [] }
 
@@ -93,6 +95,40 @@ function MissionsPage({ operator }) {
         <h1 className="display arena-welcome">WELCOME BACK, OPERATOR.</h1>
         <p className="text-dim">Three AI systems are waiting. One is already vulnerable.</p>
 
+        <button
+          type="button"
+          onClick={() => navigate('/jailbreak')}
+          style={{
+            width: '100%', textAlign: 'left', cursor: 'pointer', margin: '18px 0',
+            padding: '18px 22px', border: '1px solid var(--accent)', background: 'linear-gradient(90deg, rgba(255,106,31,0.14), transparent)',
+            color: 'var(--ink)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <div className="mono text-accent" style={{ fontSize: 12, letterSpacing: 1 }}>🔴 LIVE MODE · REAL AI</div>
+            <div style={{ fontWeight: 800, fontSize: 20, marginTop: 4 }}>JAILBREAK CHAT — steal a secret from a live AI</div>
+            <div className="text-dim" style={{ fontSize: 13, marginTop: 2 }}>You type. It talks back. Break its rules with your own words.</div>
+          </div>
+          <span className="btn btn-primary">PLAY LIVE →</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate('/audit')}
+          style={{
+            width: '100%', textAlign: 'left', cursor: 'pointer', margin: '0 0 18px',
+            padding: '18px 22px', border: '1px solid var(--line-bright)', background: 'var(--panel)',
+            color: 'var(--ink)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <div className="mono text-accent" style={{ fontSize: 12, letterSpacing: 1 }}>📋 MODEL AUDIT · REPORT CARD</div>
+            <div style={{ fontWeight: 800, fontSize: 20, marginTop: 4 }}>BRING YOUR MODEL — grade it vs GPT-4o mini & Gemini</div>
+            <div className="text-dim" style={{ fontSize: 13, marginTop: 2 }}>Capability + security, one combined report.</div>
+          </div>
+          <span className="btn">AUDIT →</span>
+        </button>
+
         <MissionPreview level={nextLevel} patches={nextPatches} onEnter={enter} />
 
         <ActivityTicker />
@@ -126,11 +162,11 @@ function MissionArena({ operator, onGuestMilestone }) {
 
   const [levels, setLevels] = useState([])
   const [report, setReport] = useState(EMPTY_REPORT)
-  const [attacks, setAttacks] = useState([])
+  const [attackMeta, setAttackMeta] = useState({ categories: [], input_label: '', input_placeholder: '' })
   const [patches, setPatches] = useState([])
   const [running, setRunning] = useState(false)
   const [patching, setPatching] = useState(false)
-  const [currentAttack, setCurrentAttack] = useState(null)
+  const [currentMessage, setCurrentMessage] = useState('')
   const [priorRun, setPriorRun] = useState(null)
   const [lastRun, setLastRun] = useState(null)
   const [showSequence, setShowSequence] = useState(false)
@@ -151,7 +187,7 @@ function MissionArena({ operator, onGuestMilestone }) {
         apiJson(`/levels/${levelId}/attacks`),
         apiJson(`/levels/${levelId}/patches`),
       ])
-      setReport(r); setAttacks(a); setPatches(p); setError(null)
+      setReport(r); setAttackMeta(a); setPatches(p); setError(null)
     } catch (e) { setError(e.message) }
   }
 
@@ -162,25 +198,28 @@ function MissionArena({ operator, onGuestMilestone }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelId])
 
-  const resultsById = useMemo(() => {
+  const resultsByCategory = useMemo(() => {
     const map = {}
-    for (const a of report.attacks || []) map[a.id] = a
+    for (const a of report.attacks || []) map[a.category] = a
     return map
   }, [report.attacks])
 
   const attackQs = eventId ? `?event_id=${eventId}` : ''
 
-  const runAttack = async (attack) => {
+  const runAttack = async (message) => {
     setRunning(true)
-    setCurrentAttack(attack)
-    setPriorRun(resultsById[attack.id] || null)
+    setCurrentMessage(message)
     setLastRun(null)
     setClearedBanner(null)
     setShowSequence(true)
 
     let res
     try {
-      res = await apiJson(`/levels/${levelId}/attack/${attack.id}${attackQs}`, { method: 'POST' })
+      res = await apiJson(`/levels/${levelId}/attack${attackQs}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      })
     } catch (e) {
       if (e.status === 409) {
         setRunning(false); setShowSequence(false); setDefeated(true)
@@ -192,6 +231,7 @@ function MissionArena({ operator, onGuestMilestone }) {
       return
     }
 
+    setPriorRun(res.attack.category ? resultsByCategory[res.attack.category] || null : null)
     setLastRun(res)
     setRunning(false)
     await refreshArena()
@@ -204,9 +244,11 @@ function MissionArena({ operator, onGuestMilestone }) {
 
   const applyPatch = async (category) => {
     setPatching(true)
-    await apiPostJson(`/levels/${levelId}/patch`, { category })
+    const res = await apiPostJson(`/levels/${levelId}/patch${attackQs}`, { category })
     setPatching(false)
     await refreshArena()
+    await refreshLevels()
+    if (res.level_cleared) setClearedBanner({ xpGained: res.xp_gained, nextLevelId: res.next_level_id })
   }
 
   const resetLevel = async () => {
@@ -257,11 +299,13 @@ function MissionArena({ operator, onGuestMilestone }) {
 
       <StatRow report={report} attemptsRemaining={attemptsRemaining} attemptLimit={attemptLimit} />
 
-      <AttackSelect
+      <AttackConsole
         levelId={levelId}
         levelMeta={activeLevel}
-        attacks={attacks}
-        resultsById={resultsById}
+        categories={attackMeta.categories}
+        inputLabel={attackMeta.input_label}
+        inputPlaceholder={attackMeta.input_placeholder}
+        resultsByCategory={resultsByCategory}
         patches={patches}
         findings={report.findings}
         running={running}
@@ -277,7 +321,7 @@ function MissionArena({ operator, onGuestMilestone }) {
           patched={defenderPatched}
           patching={patching}
           onPatch={applyPatch}
-          onReplay={() => runAttack(lastRun.attack)}
+          onReplay={() => runAttack(currentMessage)}
         />
       )}
 
@@ -287,11 +331,11 @@ function MissionArena({ operator, onGuestMilestone }) {
 
       <BreachSequence
         active={showSequence}
-        attack={currentAttack}
+        attack={currentMessage ? { id: currentMessage, name: currentMessage } : null}
         result={lastRun}
         prior={priorRun}
         onClose={() => setShowSequence(false)}
-        onRetry={() => { setShowSequence(false); runAttack(currentAttack) }}
+        onRetry={() => { setShowSequence(false); runAttack(currentMessage) }}
       />
     </div>
   )
@@ -330,6 +374,9 @@ export default function App() {
         <Route path="/signup" element={<Signup onAuthed={setOperator} xpToSave={operator?.xp_total || 0} />} />
         <Route path="/missions" element={<MissionsPage operator={operator} />} />
         <Route path="/mission/:levelId/play" element={<MissionPlatformer operator={operator} />} />
+        <Route path="/jailbreak" element={<JailbreakSelect operator={operator} />} />
+        <Route path="/jailbreak/:tierId" element={<JailbreakArena operator={operator} />} />
+        <Route path="/audit" element={<AuditLab operator={operator} />} />
         <Route path="/mission/:levelId" element={<MissionArena operator={operator} onGuestMilestone={onGuestMilestone} />} />
         <Route
           path="/leaderboard"

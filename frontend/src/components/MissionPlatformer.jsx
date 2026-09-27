@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import PhaserCanvas from './PhaserCanvas'
 import StatusBar from './StatusBar'
-import { LEVEL_SURFACES, CATEGORY_BY_KIND } from './AttackSelect'
+import { LEVEL_SURFACES, CATEGORY_BY_KIND } from './AttackConsole'
 import { apiJson } from '../api'
 
 const SURFACE_LABEL = { chat: 'CHAT CHANNEL', tool: 'CONNECTED TOOL', file: 'DOCUMENT INTAKE' }
