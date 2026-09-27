@@ -20,6 +20,7 @@ import ActivityTicker from './components/ActivityTicker'
 import Onboarding from './components/Onboarding'
 import EventJoin from './components/EventJoin'
 import SaveYourRun from './components/SaveYourRun'
+import MissionPlatformer from './components/MissionPlatformer'
 
 const EMPTY_REPORT = { score: 100, weak_spots_found: 0, confirmed_live: 0, map: [], findings: [], attacks: [] }
 
@@ -77,7 +78,7 @@ function MissionsPage({ operator }) {
   }
 
   const nextLevel = levels.find((l) => l.unlocked && !l.cleared) || null
-  const enter = (id) => navigate(`/mission/${id}`)
+  const enter = (id) => navigate(`/mission/${id}/play`)
 
   return (
     <div className="arena-dashboard">
@@ -328,6 +329,7 @@ export default function App() {
         <Route path="/login" element={<Login onAuthed={setOperator} />} />
         <Route path="/signup" element={<Signup onAuthed={setOperator} xpToSave={operator?.xp_total || 0} />} />
         <Route path="/missions" element={<MissionsPage operator={operator} />} />
+        <Route path="/mission/:levelId/play" element={<MissionPlatformer operator={operator} />} />
         <Route path="/mission/:levelId" element={<MissionArena operator={operator} onGuestMilestone={onGuestMilestone} />} />
         <Route
           path="/leaderboard"

@@ -216,6 +216,7 @@ a { color: inherit; }
 .text-accent { color: var(--accent); }
 .text-safe { color: var(--safe); }
 .text-breach { color: var(--breach); }
+.text-amber { color: var(--amber); }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
@@ -692,3 +693,11 @@ a { color: inherit; }
   .arena-columns { grid-template-columns: 1fr; }
   .mission-preview { grid-template-columns: 1fr; }
 }
+
+/* ---- mission platformer ---- */
+.platformer-shell { margin-top: 20px; }
+.platformer-hud { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.platformer-hud-row { display: flex; gap: 20px; font-size: 14px; }
+.platformer-canvas { width: 100%; max-width: 860px; aspect-ratio: 860 / 480; margin: 0 auto; border: 2px solid var(--line); background: var(--void-deep); overflow: hidden; }
+.platformer-canvas canvas { width: 100% !important; height: 100% !important; display: block; }
+.platformer-controls { text-align: center; margin: 14px 0; }
