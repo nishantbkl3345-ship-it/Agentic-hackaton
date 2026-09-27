@@ -1,0 +1,8 @@
+**/node_modules
+frontend/dist
+venv
+venv-py39
+.venv
+.env
+.git
+**/__pycache__

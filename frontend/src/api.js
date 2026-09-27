@@ -1,4 +1,6 @@
-export const API = 'http://localhost:8000'
+// Dev: the Vite server talks to uvicorn on :8000. Production: the backend
+// serves this bundle and mounts the API under /api on the same origin.
+export const API = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:8000' : '/api')
 
 export async function api(path, options = {}) {
   return fetch(`${API}${path}`, { credentials: 'include', ...options })
