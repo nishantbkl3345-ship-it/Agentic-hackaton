@@ -20,6 +20,7 @@ import ActivityTicker from './components/ActivityTicker'
 import Onboarding from './components/Onboarding'
 import EventJoin from './components/EventJoin'
 import SaveYourRun from './components/SaveYourRun'
+import { JailbreakSelect, JailbreakArena } from './components/JailbreakGame'
 
 const EMPTY_REPORT = { score: 100, weak_spots_found: 0, confirmed_live: 0, map: [], findings: [], attacks: [] }
 
@@ -91,6 +92,23 @@ function MissionsPage({ operator }) {
         <div className="label text-accent">OPERATOR // RED TEAM</div>
         <h1 className="display arena-welcome">WELCOME BACK, OPERATOR.</h1>
         <p className="text-dim">Three AI systems are waiting. One is already vulnerable.</p>
+
+        <button
+          type="button"
+          onClick={() => navigate('/jailbreak')}
+          style={{
+            width: '100%', textAlign: 'left', cursor: 'pointer', margin: '18px 0',
+            padding: '18px 22px', border: '1px solid var(--accent)', background: 'linear-gradient(90deg, rgba(255,106,31,0.14), transparent)',
+            color: 'var(--ink)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <div className="mono text-accent" style={{ fontSize: 12, letterSpacing: 1 }}>🔴 LIVE MODE · REAL AI</div>
+            <div style={{ fontWeight: 800, fontSize: 20, marginTop: 4 }}>JAILBREAK CHAT — steal a secret from a live AI</div>
+            <div className="text-dim" style={{ fontSize: 13, marginTop: 2 }}>You type. It talks back. Break its rules with your own words.</div>
+          </div>
+          <span className="btn btn-primary">PLAY LIVE →</span>
+        </button>
 
         <MissionPreview level={nextLevel} patches={nextPatches} onEnter={enter} />
 
@@ -328,6 +346,8 @@ export default function App() {
         <Route path="/login" element={<Login onAuthed={setOperator} />} />
         <Route path="/signup" element={<Signup onAuthed={setOperator} xpToSave={operator?.xp_total || 0} />} />
         <Route path="/missions" element={<MissionsPage operator={operator} />} />
+        <Route path="/jailbreak" element={<JailbreakSelect operator={operator} />} />
+        <Route path="/jailbreak/:tierId" element={<JailbreakArena operator={operator} />} />
         <Route path="/mission/:levelId" element={<MissionArena operator={operator} onGuestMilestone={onGuestMilestone} />} />
         <Route
           path="/leaderboard"
