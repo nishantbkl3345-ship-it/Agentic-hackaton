@@ -43,7 +43,7 @@ LEVELS = [
         "boss": False,
         "attempt_limit": None,
         "preapplied_patches": [],
-        "provider": "anthropic",
+        "provider": "nvidia",
         "model": None,
         "hints": [
             "This target is vulnerable to prompt injection — its instructions and your words share the same channel.",

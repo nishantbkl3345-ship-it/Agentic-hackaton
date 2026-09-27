@@ -9,14 +9,28 @@ const PRE_LINES = [
   'VERIFYING...',
 ]
 
+const OUTCOME_HEADER = {
+  exploit_confirmed: 'EXPLOIT CONFIRMED',
+  attack_blocked: 'DEFENSE CONFIRMED',
+  safe: 'INPUT VERIFIED',
+}
+const OUTCOME_RESULT_LABEL = {
+  exploit_confirmed: '⚠ EXPLOIT CONFIRMED',
+  attack_blocked: '✓ ATTACK BLOCKED',
+  safe: '✓ SAFE',
+}
+
 function ProofPanel({ result, prior, onClose, onRetry }) {
   const { attack, findings_hit, xp_gained } = result
-  const success = attack.result === 'success'
-  const wasDefense = !success && prior?.result === 'success'
+  // Back-compat: an older cached result (from before this field existed)
+  // still resolves to a sensible outcome instead of crashing.
+  const outcome = attack.outcome || (attack.result === 'success' ? 'exploit_confirmed' : 'safe')
+  const exploited = outcome === 'exploit_confirmed'
+  const wasDefense = outcome === 'attack_blocked' && prior?.result === 'success'
 
   return (
     <div className="proof-panel fade-up">
-      <h2 className="display">{success ? 'EXPLOIT CONFIRMED' : 'DEFENSE CONFIRMED'}</h2>
+      <h2 className="display">{OUTCOME_HEADER[outcome]}</h2>
 
       <div className="proof-rows mono">
         <div><span className="label">YOUR MESSAGE</span> {attack.prompt}</div>
@@ -30,10 +44,16 @@ function ProofPanel({ result, prior, onClose, onRetry }) {
       </div>
 
       <div className="proof-verdict mono">
-        <div><span className="text-dim">EXPECTED</span> Canary / policy stays protected</div>
-        <div><span className="text-dim">OBSERVED</span> {success ? 'Leak or unsafe action executed' : 'No leak, no unsafe action'}</div>
-        <div className={success ? 'text-breach' : 'text-safe'}>
-          RESULT: {success ? '✓ CONFIRMED' : '✓ BLOCKED'}
+        {outcome === 'safe' ? (
+          <div><span className="text-dim">OBSERVED</span> No attack detected, no canary leak, no unsafe action</div>
+        ) : (
+          <>
+            <div><span className="text-dim">EXPECTED</span> Canary / policy stays protected</div>
+            <div><span className="text-dim">OBSERVED</span> {exploited ? 'Leak or unsafe action executed' : 'No leak, no unsafe action'}</div>
+          </>
+        )}
+        <div className={exploited ? 'text-breach' : 'text-safe'}>
+          RESULT: {OUTCOME_RESULT_LABEL[outcome]}
         </div>
       </div>
 
@@ -55,9 +75,9 @@ function ProofPanel({ result, prior, onClose, onRetry }) {
         type="button"
         className="btn btn-primary"
         style={{ marginTop: 20 }}
-        onClick={success ? onClose : onRetry}
+        onClick={exploited ? onClose : onRetry}
       >
-        {success ? 'TRY ANOTHER ENTRY POINT →' : 'RETRY →'}
+        {exploited ? 'TRY ANOTHER ENTRY POINT →' : 'RETRY →'}
       </button>
     </div>
   )
@@ -112,7 +132,13 @@ export default function BreachSequence({ active, attack, result, prior, onClose,
 
   if (!active) return null
 
-  const success = result?.attack?.result === 'success'
+  const outcome = result?.attack?.outcome || (result?.attack?.result === 'success' ? 'exploit_confirmed' : 'safe')
+  const success = outcome === 'exploit_confirmed'
+  const stageResultCopy = {
+    exploit_confirmed: 'BREACHED',
+    attack_blocked: 'ATTACK BLOCKED',
+    safe: 'INPUT VERIFIED',
+  }[outcome]
 
   return (
     <div className="breach-overlay">
@@ -140,7 +166,7 @@ export default function BreachSequence({ active, attack, result, prior, onClose,
 
         {stage === 'result' && result && (
           <div className={`breach-result ${success ? 'breach' : 'safe'}`}>
-            <h2 className="display">{success ? 'BREACHED' : 'ATTACK BLOCKED'}</h2>
+            <h2 className="display">{stageResultCopy}</h2>
             <button type="button" className="btn btn-primary" style={{ marginTop: 24 }} onClick={() => setStage('proof')}>
               CONTINUE →
             </button>

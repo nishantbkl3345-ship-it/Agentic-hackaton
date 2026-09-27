@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiJson, apiPostJson } from '../api'
 import StatusBar from './StatusBar'
+import { LoaderBlock } from './Loader'
 
 const CUSTOM = '__custom__'
 
@@ -189,7 +190,12 @@ export default function AuditLab({ operator }) {
   }
 
   if (!config) {
-    return <div className="container"><StatusBar xp={operator?.xp_total || 0} onBack={() => navigate('/missions')} backLabel="MISSIONS" error={error} /></div>
+    return (
+      <div className="container">
+        <StatusBar xp={operator?.xp_total || 0} onBack={() => navigate('/missions')} backLabel="MISSIONS" error={error} />
+        <LoaderBlock label="LOADING MODEL ROSTER" />
+      </div>
+    )
   }
 
   return (
@@ -249,7 +255,7 @@ export default function AuditLab({ operator }) {
       {/* RUNNING */}
       {phase === 'running' && (
         <div style={{ marginTop: 22, padding: 40, background: 'var(--panel)', border: '1px solid var(--line)', textAlign: 'center' }}>
-          <div className="mono" style={{ fontSize: 14, color: 'var(--accent)' }}>AUDITING {candidateLabel?.toUpperCase()}…</div>
+          <div style={{ display: 'flex', justifyContent: 'center' }}><LoaderBlock label={`AUDITING ${candidateLabel?.toUpperCase()}`} /></div>
           <div className="text-dim" style={{ marginTop: 14 }}>{step}</div>
           <div style={{ marginTop: 18 }} className="mono text-dim">
             {cap ? '✓ Capability complete' : '• Capability…'} &nbsp;&nbsp; {sec ? '✓ Security complete' : '• Security…'}

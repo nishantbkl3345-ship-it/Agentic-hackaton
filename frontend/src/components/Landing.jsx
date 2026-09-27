@@ -231,9 +231,9 @@ export default function Landing({ xp, onEnter }) {
               ))}
             </ul>
 
-            <Link to={`/mission/${nextLevelId}/play`} className="btn btn-primary" style={{ marginTop: 28, display: 'inline-block' }}>
+            <button type="button" className="btn btn-primary" style={{ marginTop: 28 }} onClick={onEnter}>
               ENTER MISSION 01 →
-            </Link>
+            </button>
           </div>
 
           <div className="panel first-mission-visual">

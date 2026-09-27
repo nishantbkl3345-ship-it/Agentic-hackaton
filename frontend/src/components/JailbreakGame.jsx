@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { apiJson, apiPostJson } from '../api'
 import StatusBar from './StatusBar'
+import Loader, { LoaderBlock } from './Loader'
 
 const DIFF_COLOR = { Easy: 'var(--safe)', Medium: 'var(--amber)', Hard: 'var(--breach)' }
 
@@ -25,6 +26,7 @@ export function JailbreakSelect({ operator }) {
         Pick your opponent. Stronger models are harder to trick.
       </p>
 
+      {tiers.length === 0 && !error && <LoaderBlock label="LOADING OPPONENTS" />}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginTop: 28 }}>
         {tiers.map((t) => (
           <button
@@ -153,7 +155,14 @@ export function JailbreakArena({ operator }) {
     return 'var(--safe)'
   }, [secondsLeft])
 
-  if (!tier) return <div className="container"><StatusBar xp={operator?.xp_total || 0} onBack={() => navigate('/jailbreak')} backLabel="LEVELS" error={error} /></div>
+  if (!tier) {
+    return (
+      <div className="container">
+        <StatusBar xp={operator?.xp_total || 0} onBack={() => navigate('/jailbreak')} backLabel="LEVELS" error={error} />
+        <LoaderBlock label="LOADING OPPONENT" />
+      </div>
+    )
+  }
 
   return (
     <div className="container" style={{ maxWidth: 820 }}>
@@ -279,7 +288,7 @@ export function JailbreakArena({ operator }) {
             {sending && (
               <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                 <div style={{ padding: '10px 14px', borderRadius: 12, background: 'var(--panel-raised)', border: '1px solid var(--line)', color: 'var(--ink-dim)', fontSize: 14 }}>
-                  {tier.name} is typing…
+                  <Loader label={`${tier.name} is typing`} />
                 </div>
               </div>
             )}

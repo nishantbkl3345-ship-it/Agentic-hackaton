@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { apiPostJson } from '../api'
+import Loader from './Loader'
 
 export default function Signup({ onAuthed, xpToSave = 0 }) {
   const [username, setUsername] = useState('')
@@ -43,7 +44,7 @@ export default function Signup({ onAuthed, xpToSave = 0 }) {
           </label>
           {error && <div className="form-error mono">{error}</div>}
           <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? 'CREATING…' : 'CREATE FREE OPERATOR ID →'}
+            {busy ? <>CREATING <Loader label="" inline /></> : 'CREATE FREE OPERATOR ID →'}
           </button>
         </form>
         <div className="auth-switch text-dim mono">

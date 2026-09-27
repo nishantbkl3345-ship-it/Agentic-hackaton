@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { apiPostJson } from '../api'
+import Loader from './Loader'
 
 export default function Login({ onAuthed }) {
   const [username, setUsername] = useState('')
@@ -40,7 +41,7 @@ export default function Login({ onAuthed }) {
           </label>
           {error && <div className="form-error mono">{error}</div>}
           <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? 'SIGNING IN…' : 'SIGN IN →'}
+            {busy ? <>SIGNING IN <Loader label="" inline /></> : 'SIGN IN →'}
           </button>
         </form>
         <div className="auth-switch text-dim mono">

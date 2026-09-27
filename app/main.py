@@ -17,6 +17,7 @@ from app import db
 from app.attacks import run_free_text
 from app.jailbreak import router as jailbreak_router
 from app.audit import router as audit_router
+from app.crucible import router as crucible_router
 from app.auth import SESSION_COOKIE, current_operator, hash_password, set_session_cookie, verify_password
 from app.db import get_conn
 from app.elo import update_elo
@@ -36,6 +37,7 @@ app.add_middleware(
 
 app.include_router(jailbreak_router)
 app.include_router(audit_router)
+app.include_router(crucible_router)
 
 TARGET_PATH = "target"
 ALL_FINDINGS = scan_repo(TARGET_PATH)

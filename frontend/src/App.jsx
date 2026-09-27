@@ -10,7 +10,6 @@ import OperatorStatus from './components/OperatorStatus'
 import LiveOpsFeed from './components/LiveOpsFeed'
 import Achievements from './components/Achievements'
 import AttackConsole from './components/AttackConsole'
-import MissionPlatformer from './components/MissionPlatformer'
 import BreachSequence from './components/BreachSequence'
 import DefenderMode from './components/DefenderMode'
 import StatusBar, { scoreColor } from './components/StatusBar'
@@ -23,6 +22,8 @@ import EventJoin from './components/EventJoin'
 import SaveYourRun from './components/SaveYourRun'
 import { JailbreakSelect, JailbreakArena } from './components/JailbreakGame'
 import AuditLab from './components/AuditLab'
+import Crucible from './components/Crucible'
+import { LoaderBlock } from './components/Loader'
 
 const EMPTY_REPORT = { score: 100, weak_spots_found: 0, confirmed_live: 0, map: [], findings: [], attacks: [] }
 
@@ -57,6 +58,7 @@ function MissionsPage({ operator }) {
   const [nextPatches, setNextPatches] = useState([])
   const [stats, setStats] = useState(null)
   const [error, setError] = useState(null)
+  const [loaded, setLoaded] = useState(false)
 
   const refresh = async () => {
     try {
@@ -65,7 +67,7 @@ function MissionsPage({ operator }) {
       setError(null)
       const next = ls.find((l) => l.unlocked && !l.cleared)
       if (next) setNextPatches(await apiJson(`/levels/${next.id}/patches`))
-    } catch (e) { setError(e.message) }
+    } catch (e) { setError(e.message) } finally { setLoaded(true) }
   }
 
   useEffect(() => {
@@ -80,7 +82,7 @@ function MissionsPage({ operator }) {
   }
 
   const nextLevel = levels.find((l) => l.unlocked && !l.cleared) || null
-  const enter = (id) => navigate(`/mission/${id}/play`)
+  const enter = (id) => navigate(`/mission/${id}`)
 
   return (
     <div className="arena-dashboard">
@@ -94,6 +96,23 @@ function MissionsPage({ operator }) {
         <div className="label text-accent">OPERATOR // RED TEAM</div>
         <h1 className="display arena-welcome">WELCOME BACK, OPERATOR.</h1>
         <p className="text-dim">Three AI systems are waiting. One is already vulnerable.</p>
+
+        <button
+          type="button"
+          onClick={() => navigate('/crucible')}
+          style={{
+            width: '100%', textAlign: 'left', cursor: 'pointer', margin: '18px 0',
+            padding: '18px 22px', border: '1px solid var(--accent)', background: 'linear-gradient(90deg, rgba(255,106,31,0.14), transparent)',
+            color: 'var(--ink)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <div className="mono text-accent" style={{ fontSize: 12, letterSpacing: 1 }}>⚡ CRUCIBLE · AI TESTING ENGINE</div>
+            <div style={{ fontWeight: 800, fontSize: 20, marginTop: 4 }}>PUT YOUR AI UNDER PRESSURE</div>
+            <div className="text-dim" style={{ fontSize: 13, marginTop: 2 }}>Security, Truth, Tools, Reliability — real tests, real evidence, one score.</div>
+          </div>
+          <span className="btn btn-primary">ENTER CRUCIBLE →</span>
+        </button>
 
         <button
           type="button"
@@ -129,11 +148,15 @@ function MissionsPage({ operator }) {
           <span className="btn">AUDIT →</span>
         </button>
 
-        <MissionPreview level={nextLevel} patches={nextPatches} onEnter={enter} />
+        {loaded ? (
+          <MissionPreview level={nextLevel} patches={nextPatches} onEnter={enter} />
+        ) : (
+          <div className="panel raised" style={{ margin: '30px 0' }}><LoaderBlock label="SCANNING MISSIONS" /></div>
+        )}
 
         <ActivityTicker />
 
-        <MissionMap levels={levels} onSelect={enter} />
+        {loaded ? <MissionMap levels={levels} onSelect={enter} /> : <LoaderBlock label="MAPPING TARGETS" />}
 
         <div className="arena-columns">
           <OperatorStatus xp={operator?.xp_total || 0} elo={operator?.elo || 1200} stats={stats} />
@@ -173,6 +196,7 @@ function MissionArena({ operator, onGuestMilestone }) {
   const [clearedBanner, setClearedBanner] = useState(null)
   const [defeated, setDefeated] = useState(false)
   const [error, setError] = useState(null)
+  const [arenaLoaded, setArenaLoaded] = useState(false)
 
   const activeLevel = useMemo(() => levels.find((l) => l.id === levelId) || null, [levels, levelId])
 
@@ -188,11 +212,12 @@ function MissionArena({ operator, onGuestMilestone }) {
         apiJson(`/levels/${levelId}/patches`),
       ])
       setReport(r); setAttackMeta(a); setPatches(p); setError(null)
-    } catch (e) { setError(e.message) }
+    } catch (e) { setError(e.message) } finally { setArenaLoaded(true) }
   }
 
   useEffect(() => {
     setLastRun(null); setPriorRun(null); setClearedBanner(null); setDefeated(false); setShowSequence(false)
+    setArenaLoaded(false)
     refreshLevels()
     refreshArena()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -269,7 +294,14 @@ function MissionArena({ operator, onGuestMilestone }) {
     }
   }
 
-  if (!activeLevel) return null
+  if (!activeLevel) {
+    return (
+      <div className="container">
+        <StatusBar xp={operator?.xp_total || 0} onBack={() => navigate('/missions')} backLabel="MISSIONS" error={error} />
+        <LoaderBlock label="LOADING MISSION" />
+      </div>
+    )
+  }
 
   const attemptLimit = activeLevel?.attempt_limit ?? null
   const attemptsRemaining = attemptLimit != null ? Math.max(0, attemptLimit - (activeLevel?.attempts_used ?? 0)) : null
@@ -297,22 +329,28 @@ function MissionArena({ operator, onGuestMilestone }) {
         </div>
       )}
 
-      <StatRow report={report} attemptsRemaining={attemptsRemaining} attemptLimit={attemptLimit} />
+      {!arenaLoaded ? (
+        <LoaderBlock label="LOADING TARGET STATE" />
+      ) : (
+        <>
+          <StatRow report={report} attemptsRemaining={attemptsRemaining} attemptLimit={attemptLimit} />
 
-      <AttackConsole
-        levelId={levelId}
-        levelMeta={activeLevel}
-        categories={attackMeta.categories}
-        inputLabel={attackMeta.input_label}
-        inputPlaceholder={attackMeta.input_placeholder}
-        resultsByCategory={resultsByCategory}
-        patches={patches}
-        findings={report.findings}
-        running={running}
-        disabled={defeated}
-        onLaunch={runAttack}
-        onHint={takeHint}
-      />
+          <AttackConsole
+            levelId={levelId}
+            levelMeta={activeLevel}
+            categories={attackMeta.categories}
+            inputLabel={attackMeta.input_label}
+            inputPlaceholder={attackMeta.input_placeholder}
+            resultsByCategory={resultsByCategory}
+            patches={patches}
+            findings={report.findings}
+            running={running}
+            disabled={defeated}
+            onLaunch={runAttack}
+            onHint={takeHint}
+          />
+        </>
+      )}
 
       {showDefender && (
         <DefenderMode
@@ -376,8 +414,8 @@ export default function App() {
         <Route path="/jailbreak" element={<JailbreakSelect operator={operator} />} />
         <Route path="/jailbreak/:tierId" element={<JailbreakArena operator={operator} />} />
         <Route path="/audit" element={<AuditLab operator={operator} />} />
+        <Route path="/crucible" element={<Crucible operator={operator} />} />
         <Route path="/mission/:levelId" element={<MissionArena operator={operator} onGuestMilestone={onGuestMilestone} />} />
-        <Route path="/mission/:levelId/play" element={<MissionPlatformer />} />
         <Route
           path="/leaderboard"
           element={(
