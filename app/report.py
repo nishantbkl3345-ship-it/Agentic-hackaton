@@ -11,13 +11,14 @@ REASON_TO_TYPES = {
 }
 
 
-def _proves(attack: dict) -> list:
+def proves(attack: dict) -> list:
+    """Which scan-finding types a successful attack counts as proof for."""
     if attack.get("vuln_type"):
         return [attack["vuln_type"]]
     return REASON_TO_TYPES.get(attack.get("reason"), [])
 
 
-def _attack_severity(attack: dict, linked: list) -> str:
+def attack_severity(attack: dict, linked: list) -> str:
     if attack.get("severity") in SEVERITY_PENALTY:
         return attack["severity"]
     for level in ("high", "medium", "low"):
@@ -34,11 +35,11 @@ def build_report(scan_findings: list, attack_results: list) -> dict:
     hole_map = []
     score = 100
     for attack in successes:
-        types = _proves(attack)
+        types = proves(attack)
         linked = [f for f in scan_findings if f.get("type") in types]
         for finding in linked:
             hole_map.append({"finding": finding, "attack": attack})
-        score -= SEVERITY_PENALTY[_attack_severity(attack, linked)]
+        score -= SEVERITY_PENALTY[attack_severity(attack, linked)]
 
     return {
         "score": max(0, score),

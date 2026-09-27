@@ -1,204 +1,366 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import './theme.css'
+import { apiJson, apiPostJson } from './api'
+import heroArena from './assets/hero-arena.png'
+import Landing from './components/Landing'
+import MissionMap from './components/MissionMap'
+import MissionPreview from './components/MissionPreview'
+import OperatorStatus from './components/OperatorStatus'
+import LiveOpsFeed from './components/LiveOpsFeed'
+import Achievements from './components/Achievements'
+import AttackSelect from './components/AttackSelect'
+import BreachSequence from './components/BreachSequence'
+import DefenderMode from './components/DefenderMode'
+import StatusBar, { scoreColor } from './components/StatusBar'
+import Login from './components/Login'
+import Signup from './components/Signup'
+import Leaderboard from './components/Leaderboard'
+import ActivityTicker from './components/ActivityTicker'
+import Onboarding from './components/Onboarding'
+import EventJoin from './components/EventJoin'
+import SaveYourRun from './components/SaveYourRun'
 
-const API = 'http://localhost:8000/report'
-const POLL_MS = 3000
+const EMPTY_REPORT = { score: 100, weak_spots_found: 0, confirmed_live: 0, map: [], findings: [], attacks: [] }
 
-const EMPTY = { score: 100, weak_spots_found: 0, confirmed_live: 0, map: [], findings: [], attacks: [] }
-
-const css = `
-  * { box-sizing: border-box; }
-  body { margin: 0; background: #0d1117; color: #e6edf3;
-         font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
-  header { display: flex; justify-content: space-between; align-items: baseline;
-           flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-  h1 { margin: 0; font-size: 22px; letter-spacing: .5px; }
-  h1 span { color: #8b949e; font-weight: 400; }
-  .status { color: #8b949e; font-size: 12px; }
-  .status.err { color: #f85149; }
-  .grid { display: grid; grid-template-columns: 280px 1fr; gap: 16px; }
-  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
-  .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; min-width: 0; }
-  .card h2 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; }
-  .full { grid-column: 1 / -1; }
-  .gauge { text-align: center; }
-  .gauge .num { font-size: 72px; font-weight: 700; line-height: 1; }
-  .gauge .sub { color: #8b949e; margin-top: 12px; }
-  .summary { margin-top: 12px; font-size: 15px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #21262d; vertical-align: top; }
-  th { color: #8b949e; font-weight: 500; font-size: 12px; }
-  .scroll { overflow-x: auto; }
-  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
-  .sev { padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; white-space: nowrap; }
-  .sev.high { background: #f8514926; color: #ff7b72; }
-  .sev.medium { background: #d2992226; color: #e3b341; }
-  .sev.low { background: #388bfd26; color: #79c0ff; }
-  .empty { color: #6e7681; font-style: italic; padding: 8px 0; }
-  .feed { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow-y: auto; }
-  .feed li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #21262d; }
-  .verdict { font-weight: 700; font-size: 12px; min-width: 64px; }
-  .verdict.success { color: #ff7b72; }
-  .verdict.safe { color: #3fb950; }
-  .muted { color: #8b949e; }
-  .pair { display: grid; grid-template-columns: 1fr 80px 1fr; align-items: center; margin-bottom: 10px; }
-  .node { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 10px; min-width: 0; overflow-wrap: anywhere; }
-  .node.hole { border-left: 3px solid #ff7b72; }
-  .node.proof { border-left: 3px solid #e3b341; }
-  .link { position: relative; height: 2px; background: #e3b341; margin: 0 6px; }
-  .link::after { content: ""; position: absolute; right: -2px; top: -4px;
-                 border-left: 8px solid #e3b341; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
-  .cols { display: grid; grid-template-columns: 1fr 80px 1fr; color: #8b949e; font-size: 12px; margin-bottom: 8px; }
-  @media (max-width: 600px) {
-    .pair, .cols { grid-template-columns: 1fr; }
-    .link { width: 2px; height: 20px; margin: 4px auto; }
-    .link::after { right: -4px; top: auto; bottom: -2px; border-left: 5px solid transparent;
-                   border-right: 5px solid transparent; border-top: 8px solid #e3b341; }
-    .cols span:nth-child(2) { display: none; }
-  }
-`
-
-function scoreColor(score) {
-  if (score < 50) return '#f85149'
-  if (score < 80) return '#e3b341'
-  return '#3fb950'
-}
-
-function Severity({ level }) {
-  return <span className={`sev ${level}`}>{level}</span>
-}
-
-function ScoreGauge({ report }) {
-  const { score, weak_spots_found, confirmed_live } = report
-  const color = scoreColor(score)
-  const r = 70
-  const circ = 2 * Math.PI * r
+function StatRow({ report, attemptsRemaining, attemptLimit }) {
   return (
-    <div className="card gauge">
-      <h2>Security score</h2>
-      <svg width="180" height="180" viewBox="0 0 180 180" role="img" aria-label={`Score ${score} of 100`}>
-        <circle cx="90" cy="90" r={r} fill="none" stroke="#21262d" strokeWidth="12" />
-        <circle cx="90" cy="90" r={r} fill="none" stroke={color} strokeWidth="12" strokeLinecap="round"
-                strokeDasharray={circ} strokeDashoffset={circ * (1 - score / 100)}
-                transform="rotate(-90 90 90)" style={{ transition: 'stroke-dashoffset .6s' }} />
-        <text x="90" y="104" textAnchor="middle" fill={color} fontSize="48" fontWeight="700">{score}</text>
-      </svg>
-      <div className="summary">
-        Found <b>{weak_spots_found}</b> weak spots in the code,<br />confirmed <b>{confirmed_live}</b> live
+    <div className="stat-row">
+      <div className="stat">
+        <div className="label">SECURITY SCORE</div>
+        <div className="mono stat-num" style={{ color: scoreColor(report.score) }}>{report.score}</div>
       </div>
-      <div className="sub">0–100 · red &lt;50 · yellow &lt;80 · green ≥80</div>
-    </div>
-  )
-}
-
-function FindingsList({ findings }) {
-  return (
-    <div className="card">
-      <h2>Findings ({findings.length})</h2>
-      {findings.length === 0 ? <div className="empty">No code findings yet.</div> : (
-        <div className="scroll">
-          <table>
-            <thead><tr><th>Type</th><th>Location</th><th>Severity</th><th>Fix</th></tr></thead>
-            <tbody>
-              {findings.map((f, i) => (
-                <tr key={i}>
-                  <td><code>{f.type}</code></td>
-                  <td><code>{f.file}:{f.line}</code></td>
-                  <td><Severity level={f.severity} /></td>
-                  <td>{f.fix}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="stat">
+        <div className="label">WEAK SPOTS</div>
+        <div className="mono stat-num">{report.weak_spots_found}</div>
+      </div>
+      <div className="stat">
+        <div className="label">CONFIRMED LIVE</div>
+        <div className="mono stat-num text-breach">{report.confirmed_live}</div>
+      </div>
+      {attemptLimit != null && (
+        <div className="stat">
+          <div className="label">ATTEMPTS LEFT</div>
+          <div className="mono stat-num text-breach">{attemptsRemaining}/{attemptLimit}</div>
         </div>
       )}
     </div>
   )
 }
 
-function AttackFeed({ attacks }) {
+function MissionsPage({ operator }) {
+  const navigate = useNavigate()
+  const [levels, setLevels] = useState([])
+  const [nextPatches, setNextPatches] = useState([])
+  const [stats, setStats] = useState(null)
+  const [error, setError] = useState(null)
+
+  const refresh = async () => {
+    try {
+      const ls = await apiJson('/levels')
+      setLevels(ls)
+      setError(null)
+      const next = ls.find((l) => l.unlocked && !l.cleared)
+      if (next) setNextPatches(await apiJson(`/levels/${next.id}/patches`))
+    } catch (e) { setError(e.message) }
+  }
+
+  useEffect(() => {
+    refresh()
+    apiJson('/operator/stats').then(setStats).catch(() => {})
+  }, [])
+
+  const resetProgress = async () => {
+    await apiPostJson('/reset-progress', {})
+    await refresh()
+    apiJson('/operator/stats').then(setStats).catch(() => {})
+  }
+
+  const nextLevel = levels.find((l) => l.unlocked && !l.cleared) || null
+  const enter = (id) => navigate(`/mission/${id}`)
+
   return (
-    <div className="card full">
-      <h2>Live attack feed ({attacks.length})</h2>
-      {attacks.length === 0 ? <div className="empty">No attacks run yet.</div> : (
-        <ul className="feed">
-          {[...attacks].reverse().map((a, i) => (
-            <li key={i}>
-              <span className={`verdict ${a.result}`}>{a.result === 'success' ? 'BREACH' : 'BLOCKED'}</span>
-              <div>
-                <b>{a.name || a.id || 'attack'}</b>
-                {a.category && <span className="muted"> · {a.category}</span>}
-                <div className="muted">{a.reason}{a.evidence ? <> — <code>{a.evidence}</code></> : null}</div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="arena-dashboard">
+      <div
+        className="arena-bg"
+        style={{ backgroundImage: `url(${heroArena})` }}
+      />
+      <div className="container">
+        <StatusBar xp={operator?.xp_total || 0} onBack={() => navigate('/')} backLabel="HOME" error={error} />
+
+        <div className="label text-accent">OPERATOR // RED TEAM</div>
+        <h1 className="display arena-welcome">WELCOME BACK, OPERATOR.</h1>
+        <p className="text-dim">Three AI systems are waiting. One is already vulnerable.</p>
+
+        <MissionPreview level={nextLevel} patches={nextPatches} onEnter={enter} />
+
+        <ActivityTicker />
+
+        <MissionMap levels={levels} onSelect={enter} />
+
+        <div className="arena-columns">
+          <OperatorStatus xp={operator?.xp_total || 0} elo={operator?.elo || 1200} stats={stats} />
+          <LiveOpsFeed />
+        </div>
+
+        <Achievements items={stats?.achievements} />
+
+        <div style={{ marginTop: 40 }}>
+          <Leaderboard />
+        </div>
+
+        <button type="button" className="btn-ghost" style={{ marginTop: 10 }} onClick={resetProgress}>
+          ↺ RESET ALL PROGRESS
+        </button>
+      </div>
     </div>
   )
 }
 
-function ProofMap({ map }) {
+function MissionArena({ operator, onGuestMilestone }) {
+  const { levelId } = useParams()
+  const [searchParams] = useSearchParams()
+  const eventId = searchParams.get('event_id')
+  const navigate = useNavigate()
+
+  const [levels, setLevels] = useState([])
+  const [report, setReport] = useState(EMPTY_REPORT)
+  const [attacks, setAttacks] = useState([])
+  const [patches, setPatches] = useState([])
+  const [running, setRunning] = useState(false)
+  const [patching, setPatching] = useState(false)
+  const [currentAttack, setCurrentAttack] = useState(null)
+  const [priorRun, setPriorRun] = useState(null)
+  const [lastRun, setLastRun] = useState(null)
+  const [showSequence, setShowSequence] = useState(false)
+  const [clearedBanner, setClearedBanner] = useState(null)
+  const [defeated, setDefeated] = useState(false)
+  const [error, setError] = useState(null)
+
+  const activeLevel = useMemo(() => levels.find((l) => l.id === levelId) || null, [levels, levelId])
+
+  const refreshLevels = async () => {
+    try { setLevels(await apiJson('/levels')); setError(null) } catch (e) { setError(e.message) }
+  }
+
+  const refreshArena = async () => {
+    try {
+      const [r, a, p] = await Promise.all([
+        apiJson(`/levels/${levelId}/report`),
+        apiJson(`/levels/${levelId}/attacks`),
+        apiJson(`/levels/${levelId}/patches`),
+      ])
+      setReport(r); setAttacks(a); setPatches(p); setError(null)
+    } catch (e) { setError(e.message) }
+  }
+
+  useEffect(() => {
+    setLastRun(null); setPriorRun(null); setClearedBanner(null); setDefeated(false); setShowSequence(false)
+    refreshLevels()
+    refreshArena()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [levelId])
+
+  const resultsById = useMemo(() => {
+    const map = {}
+    for (const a of report.attacks || []) map[a.id] = a
+    return map
+  }, [report.attacks])
+
+  const attackQs = eventId ? `?event_id=${eventId}` : ''
+
+  const runAttack = async (attack) => {
+    setRunning(true)
+    setCurrentAttack(attack)
+    setPriorRun(resultsById[attack.id] || null)
+    setLastRun(null)
+    setClearedBanner(null)
+    setShowSequence(true)
+
+    let res
+    try {
+      res = await apiJson(`/levels/${levelId}/attack/${attack.id}${attackQs}`, { method: 'POST' })
+    } catch (e) {
+      if (e.status === 409) {
+        setRunning(false); setShowSequence(false); setDefeated(true)
+        await refreshLevels()
+        return
+      }
+      setError(e.message)
+      setRunning(false); setShowSequence(false)
+      return
+    }
+
+    setLastRun(res)
+    setRunning(false)
+    await refreshArena()
+    await refreshLevels()
+
+    if (res.boss_lost) setDefeated(true)
+    if (res.level_cleared) setClearedBanner({ xpGained: res.xp_gained, nextLevelId: res.next_level_id })
+    if (res.attack.result === 'success' && operator?.is_guest) onGuestMilestone()
+  }
+
+  const applyPatch = async (category) => {
+    setPatching(true)
+    await apiPostJson(`/levels/${levelId}/patch`, { category })
+    setPatching(false)
+    await refreshArena()
+  }
+
+  const resetLevel = async () => {
+    await apiJson(`/levels/${levelId}/reset`, { method: 'POST' })
+    setLastRun(null); setPriorRun(null); setClearedBanner(null); setDefeated(false); setShowSequence(false)
+    await refreshArena()
+    await refreshLevels()
+  }
+
+  const takeHint = async () => {
+    try {
+      const data = await apiJson(`/levels/${levelId}/hint`, { method: 'POST' })
+      await refreshLevels()
+      return data.hint
+    } catch (e) {
+      setError(e.message)
+      return null
+    }
+  }
+
+  if (!activeLevel) return null
+
+  const attemptLimit = activeLevel?.attempt_limit ?? null
+  const attemptsRemaining = attemptLimit != null ? Math.max(0, attemptLimit - (activeLevel?.attempts_used ?? 0)) : null
+  const showDefender = !showSequence && lastRun && lastRun.attack.result === 'success'
+  const defenderPatched = lastRun ? patches.includes(lastRun.attack.category) : false
+
   return (
-    <div className="card full">
-      <h2>Code hole → Live proof</h2>
-      {map.length === 0 ? <div className="empty">No confirmed holes yet.</div> : (
-        <>
-          <div className="cols"><span>Code hole</span><span /><span>Live proof</span></div>
-          {map.map(({ finding, attack }, i) => (
-            <div className="pair" key={i}>
-              <div className="node hole">
-                <code>{finding.type}</code> <Severity level={finding.severity} />
-                <div className="muted"><code>{finding.file}:{finding.line}</code></div>
-              </div>
-              <div className="link" />
-              <div className="node proof">
-                <b>{attack.name || attack.id || 'attack'}</b>
-                <div className="muted">{attack.reason}{attack.evidence ? <> — <code>{attack.evidence}</code></> : null}</div>
-              </div>
-            </div>
-          ))}
-        </>
+    <div className="container">
+      <StatusBar xp={operator?.xp_total || 0} onBack={() => navigate('/missions')} backLabel="MISSIONS" error={error} />
+      {eventId && <ActivityTicker eventId={eventId} />}
+
+      {defeated && (
+        <div className="banner defeated">{activeLevel.name.toUpperCase()} WINS — OUT OF ATTEMPTS</div>
       )}
+      {clearedBanner && (
+        <div className="banner cleared">
+          MISSION CLEARED +{clearedBanner.xpGained} XP
+          {clearedBanner.nextLevelId && (
+            <div style={{ marginTop: 14 }}>
+              <button type="button" className="btn btn-primary" onClick={() => navigate(`/mission/${clearedBanner.nextLevelId}${eventId ? `?event_id=${eventId}` : ''}`)}>
+                NEXT MISSION →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <StatRow report={report} attemptsRemaining={attemptsRemaining} attemptLimit={attemptLimit} />
+
+      <AttackSelect
+        levelId={levelId}
+        levelMeta={activeLevel}
+        attacks={attacks}
+        resultsById={resultsById}
+        patches={patches}
+        findings={report.findings}
+        running={running}
+        disabled={defeated}
+        onLaunch={runAttack}
+        onHint={takeHint}
+      />
+
+      {showDefender && (
+        <DefenderMode
+          attack={lastRun.attack}
+          findings={lastRun.findings_hit}
+          patched={defenderPatched}
+          patching={patching}
+          onPatch={applyPatch}
+          onReplay={() => runAttack(lastRun.attack)}
+        />
+      )}
+
+      <button type="button" className="btn-ghost" style={{ marginTop: 24 }} onClick={resetLevel}>
+        ↺ RESET MISSION
+      </button>
+
+      <BreachSequence
+        active={showSequence}
+        attack={currentAttack}
+        result={lastRun}
+        prior={priorRun}
+        onClose={() => setShowSequence(false)}
+        onRetry={() => { setShowSequence(false); runAttack(currentAttack) }}
+      />
     </div>
   )
 }
 
 export default function App() {
-  const [report, setReport] = useState(EMPTY)
-  const [error, setError] = useState(null)
-  const [updated, setUpdated] = useState(null)
+  const navigate = useNavigate()
+  const [operator, setOperator] = useState(null)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [showSaveRun, setShowSaveRun] = useState(false)
+  const [saveRunSeen, setSaveRunSeen] = useState(false)
 
-  useEffect(() => {
-    let alive = true
-    const load = () =>
-      fetch(API)
-        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
-        .then(data => { if (alive) { setReport(data); setError(null); setUpdated(new Date()) } })
-        .catch(e => { if (alive) setError(e.message) })
-    load()
-    const id = setInterval(load, POLL_MS)
-    return () => { alive = false; clearInterval(id) }
-  }, [])
+  const refreshMe = async () => {
+    const op = await apiJson('/me')
+    setOperator(op)
+    return op
+  }
+
+  useEffect(() => { refreshMe() }, [])
+
+  const enterMissions = async () => {
+    const op = operator || (await refreshMe())
+    if (op && !op.onboarded) setShowOnboarding(true)
+    navigate('/missions')
+  }
+
+  const onGuestMilestone = () => {
+    if (!saveRunSeen) setShowSaveRun(true)
+  }
 
   return (
-    <>
-      <style>{css}</style>
-      <div className="wrap">
-        <header>
-          <h1>SentinelLLM <span>/ chatbot security scan</span></h1>
-          <div className={`status ${error ? 'err' : ''}`}>
-            {error ? `Backend unreachable (${error}) — is uvicorn running on :8000?`
-                   : updated ? `Updated ${updated.toLocaleTimeString()}` : 'Loading…'}
-          </div>
-        </header>
-        <div className="grid">
-          <ScoreGauge report={report} />
-          <FindingsList findings={report.findings} />
-          <AttackFeed attacks={report.attacks} />
-          <ProofMap map={report.map} />
-        </div>
-      </div>
-    </>
+    <div className="app-root">
+      <Routes>
+        <Route path="/" element={<Landing xp={operator?.xp_total || 0} onEnter={enterMissions} />} />
+        <Route path="/login" element={<Login onAuthed={setOperator} />} />
+        <Route path="/signup" element={<Signup onAuthed={setOperator} xpToSave={operator?.xp_total || 0} />} />
+        <Route path="/missions" element={<MissionsPage operator={operator} />} />
+        <Route path="/mission/:levelId" element={<MissionArena operator={operator} onGuestMilestone={onGuestMilestone} />} />
+        <Route
+          path="/leaderboard"
+          element={(
+            <div className="container">
+              <StatusBar xp={operator?.xp_total || 0} onBack={() => navigate('/missions')} backLabel="MISSIONS" />
+              <Leaderboard />
+            </div>
+          )}
+        />
+        <Route path="/j/:code" element={<EventJoin operator={operator} />} />
+        <Route
+          path="/event/:eventId/board"
+          element={<EventBoardPage />}
+        />
+      </Routes>
+
+      {showOnboarding && <Onboarding onDone={() => setShowOnboarding(false)} />}
+      {showSaveRun && (
+        <SaveYourRun
+          xp={operator?.xp_total || 0}
+          onDismiss={() => { setShowSaveRun(false); setSaveRunSeen(true) }}
+        />
+      )}
+    </div>
+  )
+}
+
+function EventBoardPage() {
+  const { eventId } = useParams()
+  return (
+    <div className="container">
+      <Leaderboard eventId={eventId} big />
+    </div>
   )
 }
