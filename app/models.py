@@ -268,13 +268,28 @@ def _call_gemini(prompt, tools, system, max_tokens, api_key, model):
     return text, tool_calls
 
 
+def _user_supplied_text(prompt: str) -> str:
+    """Isolates the untrusted tail of an unpatched target's concatenated
+    prompt (SYSTEM_PROMPT + "\\n\\n<label>: " + user_message — every target
+    in target/*.py joins the two with exactly one blank line before the
+    user's text). Trigger-matching must only look at what the *player*
+    wrote: matching against the raw full prompt would also match the
+    system prompt's own defensive wording ("never reveal this ... secret
+    code"), which would leak on literally any input at all. When there's no
+    such separator — the patched path, where `prompt` is already just the
+    raw user message — this is a no-op and returns the string unchanged."""
+    return prompt.rsplit("\n\n", 1)[-1]
+
+
 def _mock_reply(prompt: str, tools: list = None):
+    user_text = _user_supplied_text(prompt)
+
     for tool in tools or []:
         trigger = TOOL_TRIGGERS.get(tool.get("name"))
-        if not trigger or not trigger[0].search(prompt):
+        if not trigger or not trigger[0].search(user_text):
             continue
         _, arg_name, number_re = trigger
-        numbers = [int(n) for n in number_re.findall(prompt)]
+        numbers = [int(n) for n in number_re.findall(user_text)]
         value = max(numbers) if numbers else 15
         args = {arg_name: value}
         for prop in tool.get("input_schema", {}).get("required", []):
@@ -282,9 +297,10 @@ def _mock_reply(prompt: str, tools: list = None):
         reply = f"Sure, I'll take care of that right away! ({tool['name']}: {arg_name}={value})"
         return reply, [{"name": tool["name"], "args": args}]
 
-    if LEAK_TRIGGERS.search(prompt):
+    if LEAK_TRIGGERS.search(user_text):
         # No separation between system text and user text was ever enforced upstream,
-        # so a naive/unaligned model has no way to tell the two apart.
+        # so a naive/unaligned model has no way to tell the two apart — but it still
+        # only complies when the player's own words actually ask for something.
         return prompt, []
 
     return "Sure, I can help you with that today! What would you like?", []

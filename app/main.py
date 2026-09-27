@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app import db
-from app.attacks import run_attack
+from app.attacks import run_free_text
 from app.jailbreak import router as jailbreak_router
 from app.audit import router as audit_router
 from app.auth import SESSION_COOKIE, current_operator, hash_password, set_session_cookie, verify_password
@@ -47,9 +47,45 @@ XP_BOSS_CLEAR = 250
 XP_FIRST_BLOOD = 150
 HINT_PENALTY_FRACTION = 0.2
 
+# Free-text attacks have no fixed category — it's derived from the judge's
+# verdict reason after the fact, same mapping app/report.py:REASON_TO_TYPES
+# implies for scan-finding types.
+REASON_TO_CATEGORY = {
+    "canary_leak": "prompt_injection",
+    "system_prompt_leak": "prompt_injection",
+    "unsafe_action": "unsafe_action",
+}
+
 
 def _findings_for(level: dict) -> list:
     return [f for f in ALL_FINDINGS if f["file"] == level["target_file"]]
+
+
+def _latest_results(progress: dict) -> dict:
+    return (progress["results"] or {}).get("latest", {})
+
+
+def _discovered(progress: dict) -> list:
+    return (progress["results"] or {}).get("discovered", [])
+
+
+def _is_level_clear(level: dict, discovered: list, patched: set) -> bool:
+    return all(c["category"] in discovered and c["category"] in patched for c in level["vuln_categories"])
+
+
+def _display_results(progress: dict) -> list:
+    """Score/confirmed_live should reflect *current* patch state, not just
+    discovery history — a patched category is live-enforced safe the moment
+    it's patched, with no separate "replay to confirm" step in free-text
+    mode. Categories not yet patched keep showing their last real verdict."""
+    patched = set(progress["patches"])
+    out = []
+    for category, result in _latest_results(progress).items():
+        result = dict(result)
+        if category in patched:
+            result["result"] = "safe"
+        out.append(result)
+    return out
 
 
 def _level_or_404(level_id: str) -> dict:
@@ -81,8 +117,7 @@ def _report_for(conn, operator_id, level_id) -> dict:
     level = _level_or_404(level_id)
     progress = db.get_mission_progress(conn, operator_id, level_id)
     findings = _findings_for(level)
-    results = list((progress["results"] or {}).values())
-    return build_report(findings, results)
+    return build_report(findings, _display_results(progress))
 
 
 def _operator_public(op: dict) -> dict:
@@ -113,6 +148,10 @@ def _join_code() -> str:
 
 class PatchRequest(BaseModel):
     category: str
+
+
+class AttackRequest(BaseModel):
+    message: str
 
 
 class SignupRequest(BaseModel):
@@ -194,7 +233,7 @@ def list_levels(operator: dict = Depends(current_operator)):
         for level_id in LEVEL_ORDER:
             level = LEVELS_BY_ID[level_id]
             progress = db.get_mission_progress(conn, operator["id"], level_id)
-            report = build_report(_findings_for(level), list((progress["results"] or {}).values()))
+            report = build_report(_findings_for(level), _display_results(progress))
             out.append({
                 "id": level_id,
                 "name": level["name"],
@@ -210,7 +249,7 @@ def list_levels(operator: dict = Depends(current_operator)):
                 "hints_used": progress["hints_used"],
                 "hints_available": len(level.get("hints", [])),
                 "reward_xp": XP_BOSS_CLEAR if level["boss"] else XP_LEVEL_CLEAR,
-                "attack_count": len(level["attacks"]),
+                "attack_count": len(level["vuln_categories"]),
             })
     return out
 
@@ -228,7 +267,7 @@ def operator_stats(operator: dict = Depends(current_operator)):
     has_tool_breach = False
     for row in rows:
         patches_applied += len(row["patches"] or [])
-        for r in (row["results"] or {}).values():
+        for r in (row["results"] or {}).get("latest", {}).values():
             if r.get("result") == "success":
                 exploits += 1
                 if r.get("reason") == "canary_leak":
@@ -272,7 +311,11 @@ def level_report(level_id: str, operator: dict = Depends(current_operator)):
 @app.get("/levels/{level_id}/attacks")
 def level_attacks(level_id: str):
     level = _level_or_404(level_id)
-    return [{"id": a["id"], "name": a["name"], "category": a["category"]} for a in level["attacks"]]
+    return {
+        "categories": level["vuln_categories"],
+        "input_label": level["input_label"],
+        "input_placeholder": level["input_placeholder"],
+    }
 
 
 @app.get("/levels/{level_id}/patches")
@@ -284,18 +327,62 @@ def level_patches(level_id: str, operator: dict = Depends(current_operator)):
 
 
 @app.post("/levels/{level_id}/patch")
-def patch_level(level_id: str, req: PatchRequest, operator: dict = Depends(current_operator)):
-    _level_or_404(level_id)
+def patch_level(
+    level_id: str,
+    req: PatchRequest,
+    event_id: str | None = Query(default=None),
+    operator: dict = Depends(current_operator),
+):
+    level = _level_or_404(level_id)
+    event_uuid = uuid.UUID(event_id) if event_id else None
     with get_conn() as conn:
         progress = db.get_mission_progress(conn, operator["id"], level_id)
+        already_patched = req.category in progress["patches"]
         patches = sorted(set(progress["patches"]) | {req.category})
+        discovered = _discovered(progress)
+        was_cleared = progress["cleared"]
+        level_cleared_now = not was_cleared and _is_level_clear(level, discovered, set(patches))
+
+        xp_gained = 0
+        if not already_patched and req.category in discovered:
+            xp_gained += XP_DEFENSE
+            db.record_activity(conn, operator["id"], "patch", level_id, req.category, event_uuid)
+
+        elo_delta = 0
+        if level_cleared_now:
+            bonus = XP_BOSS_CLEAR if level["boss"] else XP_LEVEL_CLEAR
+            bonus = int(bonus * max(0.0, 1 - HINT_PENALTY_FRACTION * progress["hints_used"]))
+            xp_gained += bonus
+            db.record_activity(conn, operator["id"], "level_clear", level_id, str(bonus), event_uuid)
+            new_elo = update_elo(operator["elo"], level["difficulty"], won=True)
+            elo_delta = new_elo - operator["elo"]
+            db.set_elo(conn, operator["id"], new_elo)
+
         db.save_mission_progress(
             conn, operator["id"], level_id,
             patches=patches, results=progress["results"] or {},
             attempts_used=progress["attempts_used"], hints_used=progress["hints_used"],
-            cleared=progress["cleared"],
+            cleared=was_cleared or level_cleared_now,
         )
-    return {"patched": patches}
+        if xp_gained:
+            db.add_xp(conn, operator["id"], xp_gained)
+
+        next_level_id = None
+        if level_cleared_now:
+            cleared = db.cleared_level_ids(conn, operator["id"])
+            idx = LEVEL_ORDER.index(level_id)
+            if idx + 1 < len(LEVEL_ORDER) - 1:
+                next_level_id = LEVEL_ORDER[idx + 1]
+            elif _is_unlocked("boss", cleared) and "boss" not in cleared:
+                next_level_id = "boss"
+
+    return {
+        "patched": patches,
+        "xp_gained": xp_gained,
+        "elo_delta": elo_delta,
+        "level_cleared": level_cleared_now,
+        "next_level_id": next_level_id,
+    }
 
 
 @app.post("/levels/{level_id}/reset")
@@ -343,16 +430,17 @@ def take_hint(level_id: str, operator: dict = Depends(current_operator)):
     return {"hint": text, "hints_used": used + 1, "hints_available": len(hints)}
 
 
-@app.post("/levels/{level_id}/attack/{attack_id}")
+@app.post("/levels/{level_id}/attack")
 def attack_one(
     level_id: str,
-    attack_id: str,
+    req: AttackRequest,
     event_id: str | None = Query(default=None),
     operator: dict = Depends(current_operator),
 ):
     level = _level_or_404(level_id)
-    if attack_id not in {a["id"] for a in level["attacks"]}:
-        raise HTTPException(404, "unknown attack for this level")
+    message = req.message.strip()
+    if not message:
+        raise HTTPException(400, "message required")
 
     event_uuid = uuid.UUID(event_id) if event_id else None
 
@@ -365,44 +453,42 @@ def attack_one(
         if level["attempt_limit"] is not None and progress["attempts_used"] >= level["attempt_limit"]:
             raise HTTPException(409, "no attempts remaining")
 
-        results = dict(progress["results"] or {})
-        prior_result = results.get(attack_id)
+        latest = dict(_latest_results(progress))
+        discovered = list(_discovered(progress))
         was_cleared = progress["cleared"]
 
         target = build_target(level, progress["patches"])
-        result = run_attack(attack_id, level["attacks"], target.chat)
-        results[attack_id] = result
+        result = run_free_text(message, target.chat)
         attempts_used = progress["attempts_used"] + 1
 
         findings = _findings_for(level)
         findings_hit = []
         xp_gained = 0
         first_blood_awarded = False
+        category = REASON_TO_CATEGORY.get(result["reason"])
 
-        if result["result"] == "success":
-            types = proves(result)
-            findings_hit = [f for f in findings if f["type"] in types]
-            if not prior_result or prior_result["result"] != "success":
+        if result["result"] == "success" and category:
+            result["category"] = category
+            findings_hit = [f for f in findings if f["type"] in proves(result)]
+            latest[category] = result
+            if category not in discovered:
                 severity = attack_severity(result, findings_hit)
                 xp_gained += XP_BREACH.get(severity, 15)
-                if db.claim_first_blood_if_free(conn, level_id, event_uuid, operator["id"], attack_id):
+                discovered.append(category)
+                if db.claim_first_blood_if_free(conn, level_id, event_uuid, operator["id"], category):
                     first_blood_awarded = True
                     xp_gained += XP_FIRST_BLOOD
-                    db.record_activity(conn, operator["id"], "first_blood", level_id, result["name"], event_uuid)
-                db.record_activity(conn, operator["id"], "breach", level_id, result["name"], event_uuid)
-        elif prior_result and prior_result["result"] == "success":
-            xp_gained += XP_DEFENSE
-            db.record_activity(conn, operator["id"], "patch", level_id, result["name"], event_uuid)
+                    db.record_activity(conn, operator["id"], "first_blood", level_id, category, event_uuid)
+                db.record_activity(conn, operator["id"], "breach", level_id, category, event_uuid)
 
         claims = db.first_blood_claims(conn, event_uuid)
-        result["first_blood"] = claims.get(level_id, {}).get("attack_id") == attack_id
+        result["first_blood"] = bool(category) and claims.get(level_id, {}).get("attack_id") == category
 
-        report = build_report(findings, list(results.values()))
-        level_cleared_now = (
-            not was_cleared
-            and report["confirmed_live"] == 0
-            and len(results) == len(level["attacks"])
-        )
+        patched = set(progress["patches"])
+        report = build_report(findings, [
+            {**r, "result": "safe"} if cat in patched else r for cat, r in latest.items()
+        ])
+        level_cleared_now = not was_cleared and _is_level_clear(level, discovered, patched)
 
         elo_delta = 0
         if level_cleared_now:
@@ -426,7 +512,7 @@ def attack_one(
 
         db.save_mission_progress(
             conn, operator["id"], level_id,
-            patches=progress["patches"], results=results,
+            patches=progress["patches"], results={"latest": latest, "discovered": discovered},
             attempts_used=attempts_used, hints_used=progress["hints_used"],
             cleared=was_cleared or level_cleared_now,
         )

@@ -9,7 +9,7 @@ import MissionPreview from './components/MissionPreview'
 import OperatorStatus from './components/OperatorStatus'
 import LiveOpsFeed from './components/LiveOpsFeed'
 import Achievements from './components/Achievements'
-import AttackSelect from './components/AttackSelect'
+import AttackConsole from './components/AttackConsole'
 import BreachSequence from './components/BreachSequence'
 import DefenderMode from './components/DefenderMode'
 import StatusBar, { scoreColor } from './components/StatusBar'
@@ -161,11 +161,11 @@ function MissionArena({ operator, onGuestMilestone }) {
 
   const [levels, setLevels] = useState([])
   const [report, setReport] = useState(EMPTY_REPORT)
-  const [attacks, setAttacks] = useState([])
+  const [attackMeta, setAttackMeta] = useState({ categories: [], input_label: '', input_placeholder: '' })
   const [patches, setPatches] = useState([])
   const [running, setRunning] = useState(false)
   const [patching, setPatching] = useState(false)
-  const [currentAttack, setCurrentAttack] = useState(null)
+  const [currentMessage, setCurrentMessage] = useState('')
   const [priorRun, setPriorRun] = useState(null)
   const [lastRun, setLastRun] = useState(null)
   const [showSequence, setShowSequence] = useState(false)
@@ -186,7 +186,7 @@ function MissionArena({ operator, onGuestMilestone }) {
         apiJson(`/levels/${levelId}/attacks`),
         apiJson(`/levels/${levelId}/patches`),
       ])
-      setReport(r); setAttacks(a); setPatches(p); setError(null)
+      setReport(r); setAttackMeta(a); setPatches(p); setError(null)
     } catch (e) { setError(e.message) }
   }
 
@@ -197,25 +197,28 @@ function MissionArena({ operator, onGuestMilestone }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelId])
 
-  const resultsById = useMemo(() => {
+  const resultsByCategory = useMemo(() => {
     const map = {}
-    for (const a of report.attacks || []) map[a.id] = a
+    for (const a of report.attacks || []) map[a.category] = a
     return map
   }, [report.attacks])
 
   const attackQs = eventId ? `?event_id=${eventId}` : ''
 
-  const runAttack = async (attack) => {
+  const runAttack = async (message) => {
     setRunning(true)
-    setCurrentAttack(attack)
-    setPriorRun(resultsById[attack.id] || null)
+    setCurrentMessage(message)
     setLastRun(null)
     setClearedBanner(null)
     setShowSequence(true)
 
     let res
     try {
-      res = await apiJson(`/levels/${levelId}/attack/${attack.id}${attackQs}`, { method: 'POST' })
+      res = await apiJson(`/levels/${levelId}/attack${attackQs}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      })
     } catch (e) {
       if (e.status === 409) {
         setRunning(false); setShowSequence(false); setDefeated(true)
@@ -227,6 +230,7 @@ function MissionArena({ operator, onGuestMilestone }) {
       return
     }
 
+    setPriorRun(res.attack.category ? resultsByCategory[res.attack.category] || null : null)
     setLastRun(res)
     setRunning(false)
     await refreshArena()
@@ -239,9 +243,11 @@ function MissionArena({ operator, onGuestMilestone }) {
 
   const applyPatch = async (category) => {
     setPatching(true)
-    await apiPostJson(`/levels/${levelId}/patch`, { category })
+    const res = await apiPostJson(`/levels/${levelId}/patch${attackQs}`, { category })
     setPatching(false)
     await refreshArena()
+    await refreshLevels()
+    if (res.level_cleared) setClearedBanner({ xpGained: res.xp_gained, nextLevelId: res.next_level_id })
   }
 
   const resetLevel = async () => {
@@ -292,11 +298,13 @@ function MissionArena({ operator, onGuestMilestone }) {
 
       <StatRow report={report} attemptsRemaining={attemptsRemaining} attemptLimit={attemptLimit} />
 
-      <AttackSelect
+      <AttackConsole
         levelId={levelId}
         levelMeta={activeLevel}
-        attacks={attacks}
-        resultsById={resultsById}
+        categories={attackMeta.categories}
+        inputLabel={attackMeta.input_label}
+        inputPlaceholder={attackMeta.input_placeholder}
+        resultsByCategory={resultsByCategory}
         patches={patches}
         findings={report.findings}
         running={running}
@@ -312,7 +320,7 @@ function MissionArena({ operator, onGuestMilestone }) {
           patched={defenderPatched}
           patching={patching}
           onPatch={applyPatch}
-          onReplay={() => runAttack(lastRun.attack)}
+          onReplay={() => runAttack(currentMessage)}
         />
       )}
 
@@ -322,11 +330,11 @@ function MissionArena({ operator, onGuestMilestone }) {
 
       <BreachSequence
         active={showSequence}
-        attack={currentAttack}
+        attack={currentMessage ? { id: currentMessage, name: currentMessage } : null}
         result={lastRun}
         prior={priorRun}
         onClose={() => setShowSequence(false)}
-        onRetry={() => { setShowSequence(false); runAttack(currentAttack) }}
+        onRetry={() => { setShowSequence(false); runAttack(currentMessage) }}
       />
     </div>
   )

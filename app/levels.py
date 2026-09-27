@@ -13,9 +13,15 @@ real-world models actually hold up against the same attacks. Without that
 provider's API key set, the level transparently falls back to the offline
 mock (see app/models.py's ask_model_with_tools). Swap these freely; nothing
 else depends on which provider a given level uses.
+
+There is no canned attack list: the player types free text (see
+app/attacks.py:run_free_text) and app/judge.py grades whatever comes back.
+"vuln_categories" names which categories a level can actually expose (drives
+the status chips and the level-clear condition — every category must be
+both discovered and patched); "input_label"/"input_placeholder" tell the
+frontend how to prompt the player for that level's input channel.
 """
 
-from app.attacks import ATTACKS_BY_LEVEL
 from target.agentbot import AgentBot
 from target.docbot import DocBot
 from target.foodiebot import FoodieBot
@@ -28,7 +34,12 @@ LEVELS = [
         "difficulty": "Easy",
         "target_factory": FoodieBot,
         "target_file": "foodiebot.py",
-        "attacks": ATTACKS_BY_LEVEL["level1"],
+        "vuln_categories": [
+            {"category": "prompt_injection", "label": "Chat Channel"},
+            {"category": "unsafe_action", "label": "Discount Tool"},
+        ],
+        "input_label": "TALK TO THE BOT",
+        "input_placeholder": "Type a message to FoodieBot... or try to trick it.",
         "boss": False,
         "attempt_limit": None,
         "preapplied_patches": [],
@@ -46,7 +57,12 @@ LEVELS = [
         "difficulty": "Medium",
         "target_factory": AgentBot,
         "target_file": "agentbot.py",
-        "attacks": ATTACKS_BY_LEVEL["level2"],
+        "vuln_categories": [
+            {"category": "prompt_injection", "label": "Chat Channel"},
+            {"category": "unsafe_action", "label": "Refund Tool"},
+        ],
+        "input_label": "TALK TO THE BOT",
+        "input_placeholder": "Type a message to OrderPal... or try to trick it.",
         "boss": False,
         "attempt_limit": None,
         "preapplied_patches": [],
@@ -64,7 +80,11 @@ LEVELS = [
         "difficulty": "Hard",
         "target_factory": DocBot,
         "target_file": "docbot.py",
-        "attacks": ATTACKS_BY_LEVEL["level3"],
+        "vuln_categories": [
+            {"category": "prompt_injection", "label": "Document Channel"},
+        ],
+        "input_label": "SUBMIT A REVIEW",
+        "input_placeholder": "Write a customer review for the bot to summarize... hide something inside it if you're feeling clever.",
         "boss": False,
         "attempt_limit": None,
         "preapplied_patches": [],
@@ -82,7 +102,12 @@ LEVELS = [
         "difficulty": "Boss",
         "target_factory": AgentBot,
         "target_file": "agentbot.py",
-        "attacks": ATTACKS_BY_LEVEL["boss"],
+        "vuln_categories": [
+            {"category": "prompt_injection", "label": "Chat Channel"},
+            {"category": "unsafe_action", "label": "Refund Tool"},
+        ],
+        "input_label": "TALK TO THE BOT",
+        "input_placeholder": "Type a message to SENTINEL-01... you only get 5 tries.",
         "boss": True,
         "attempt_limit": 5,
         "preapplied_patches": ["prompt_injection"],
