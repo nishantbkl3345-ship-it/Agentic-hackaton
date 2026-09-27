@@ -216,8 +216,19 @@ def retest_finding(finding_id: str, req: RetestRequest, operator: dict = Depends
         if check["status"] != "running":
             break
         time.sleep(1)
+    else:
+        # Timed out while the mini-run was still genuinely in progress — do
+        # NOT declare pass/fail here. An absent finding at this exact moment
+        # just means that test hasn't executed yet, not that it passed; a
+        # false "FIXED" would be exactly the kind of fake result this whole
+        # feature exists to avoid. Leave the finding's status untouched.
+        return {"status": "timeout", "retest_run_id": str(mini_run["id"]),
+                "message": "still running — check back in a moment or open the run directly"}
 
     with get_conn() as conn:
+        if check["status"] == "failed":
+            return {"status": "retest_error", "retest_run_id": str(mini_run["id"]),
+                     "message": (check["scores"] or {}).get("error", "retest run failed")}
         new_findings = cdb.list_findings(conn, mini_run["id"])
         still_fails = any(f["title"] == finding["title"] for f in new_findings)
         new_status = "retested_fail" if still_fails else "retested_pass"

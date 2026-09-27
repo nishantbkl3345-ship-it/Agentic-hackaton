@@ -128,13 +128,19 @@ export function deriveVerdict(scores, findings) {
   if (critical === 0 && high === 0 && overall >= 85) {
     return {
       tone: 'trust', headline: 'YES — TRUST IT',
-      detail: `This target held up across ${overall}/100 of real adversarial and quality tests, with no confirmed critical or high-severity issues.`,
+      detail: `Scored ${overall}/100 across real adversarial and quality tests, with no confirmed critical or high-severity issues.`,
     }
   }
-  if (critical > 0 || overall < 50) {
+  if (critical > 0) {
     return {
       tone: 'distrust', headline: 'NOT YET',
       detail: `${critical} confirmed critical issue${critical === 1 ? '' : 's'} found. Fix the findings below and rerun CRUCIBLE before relying on this target.`,
+    }
+  }
+  if (overall < 50) {
+    return {
+      tone: 'distrust', headline: 'NOT YET',
+      detail: `Only scored ${overall}/100 overall — too many confirmed issues across too many categories to rely on this target yet. See the findings below.`,
     }
   }
   return {

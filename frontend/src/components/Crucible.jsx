@@ -151,15 +151,21 @@ export default function Crucible({ operator }) {
                   key={c.key}
                   className={`panel crucible-toggle ${configuration[c.key] ? '' : 'off'}`}
                   onClick={() => toggleCategory(c.key)}
-                  title={c.blurb}
                 >
-                  <span className="name">{c.label}</span>
-                  <span className="check mono">{configuration[c.key] ? '[✓]' : '[ ]'}</span>
+                  <div className="crucible-toggle-head">
+                    <span className="name">{c.label}</span>
+                    <span className="check mono">{configuration[c.key] ? '[✓]' : '[ ]'}</span>
+                  </div>
+                  <p className="text-dim crucible-toggle-blurb">{c.blurb}</p>
                 </div>
               ))}
             </div>
 
             <div className="label" style={{ marginTop: 20 }}>TEST DEPTH</div>
+            <p className="text-dim" style={{ fontSize: 12, margin: '4px 0 10px' }}>
+              Deeper runs send more real requests to the target — mainly Reliability's repeated
+              calls (quick: 10 reps, standard: 30, deep: 100) — and take proportionally longer.
+            </p>
             <div className="crucible-depth-row">
               {DEPTHS.map((d) => (
                 <button
