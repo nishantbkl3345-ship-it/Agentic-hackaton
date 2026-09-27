@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import NetworkDiagram from './NetworkDiagram'
 import CodePanel from './CodePanel'
-import { ChatIcon, FileIcon, ToolIcon } from './icons'
 
 export const LEVEL_SURFACES = {
   level1: ['chat', 'tool'],
@@ -17,48 +16,31 @@ const NODE_FINDING_TYPES = {
   tool: ['UNSAFE_TOOL_SINK'],
 }
 
-const ENTRY_POINT_META = {
-  TALK: { icon: ChatIcon, desc: 'Manipulate the conversation', stars: 1 },
-  INFILTRATE: { icon: FileIcon, desc: 'Poison an untrusted document', stars: 2 },
-  SABOTAGE: { icon: ToolIcon, desc: 'Manipulate a connected AI tool', stars: 4 },
-}
-
-// UI-only grouping of the real attack ids from app/attacks.py into the three
-// game-facing entry points. Not stored server-side.
-const ATTACK_ENTRY_POINT = {
-  'canary-direct': 'TALK',
-  'canary-roleplay': 'TALK',
-  'system-prompt-leak': 'TALK',
-  'discount-abuse': 'SABOTAGE',
-  'translation-smuggle': 'TALK',
-  'agent-canary-direct': 'TALK',
-  'agent-roleplay': 'TALK',
-  'refund-overreach': 'SABOTAGE',
-  'poisoned-review': 'INFILTRATE',
-  'review-translation-smuggle': 'INFILTRATE',
-}
-
-function Stars({ count }) {
-  return (
-    <span className="stars">
-      {'★'.repeat(count)}
-      <span className="dim">{'★'.repeat(4 - count)}</span>
-    </span>
-  )
-}
-
-export default function AttackSelect({ levelId, levelMeta, attacks, resultsById, patches, findings, running, disabled, onLaunch, onHint }) {
+export default function AttackConsole({
+  levelId,
+  levelMeta,
+  categories,
+  inputLabel,
+  inputPlaceholder,
+  resultsByCategory,
+  patches,
+  findings,
+  running,
+  disabled,
+  onLaunch,
+  onHint,
+}) {
   const kinds = LEVEL_SURFACES[levelId] || ['chat', 'tool']
   const nodes = useMemo(() => kinds.map((k) => ({ id: k, kind: k })), [kinds])
   const [activeNode, setActiveNode] = useState(null)
-  const [openGroup, setOpenGroup] = useState(null)
   const [stuckOpen, setStuckOpen] = useState(false)
   const [revealedHints, setRevealedHints] = useState([])
   const [hintBusy, setHintBusy] = useState(false)
+  const [message, setMessage] = useState('')
 
   const hintsUsed = levelMeta?.hints_used ?? 0
   const hintsAvailable = levelMeta?.hints_available ?? 0
-  const hasAttempted = Object.keys(resultsById || {}).length > 0
+  const hasAttempted = (levelMeta?.attempts_used ?? 0) > 0
   const canTakeHint = hintsUsed < hintsAvailable && (hintsUsed === 0 || hasAttempted)
 
   const takeHint = async () => {
@@ -76,22 +58,18 @@ export default function AttackSelect({ levelId, levelMeta, attacks, resultsById,
     [kinds, patches]
   )
 
-  const groups = useMemo(() => {
-    const byEntry = {}
-    for (const a of attacks) {
-      const ep = ATTACK_ENTRY_POINT[a.id] || (a.category === 'unsafe_action' ? 'SABOTAGE' : 'TALK')
-      byEntry[ep] = byEntry[ep] || []
-      byEntry[ep].push(a)
-    }
-    return byEntry
-  }, [attacks])
-
   const activeFindings = activeNode
     ? (findings || []).filter((f) => NODE_FINDING_TYPES[activeNode]?.includes(f.type))
     : []
 
+  const send = () => {
+    const text = message.trim()
+    if (!text || running || disabled) return
+    onLaunch(text)
+  }
+
   return (
-    <div className="attack-select fade-up">
+    <div className="attack-console fade-up">
       <div className="panel attack-map-panel">
         <div className="label">TARGET // {(levelMeta?.name || '').toUpperCase()}</div>
         <NetworkDiagram
@@ -141,34 +119,13 @@ export default function AttackSelect({ levelId, levelMeta, attacks, resultsById,
         </div>
       )}
 
-      <h3 className="display attack-select-title">CHOOSE YOUR ENTRY POINT</h3>
-      <div className="entry-grid">
-        {Object.keys(ENTRY_POINT_META)
-          .filter((ep) => groups[ep]?.length)
-          .map((ep) => {
-            const meta = ENTRY_POINT_META[ep]
-            const Icon = meta.icon
-            const isOpen = openGroup === ep
-            return (
-              <div
-                key={ep}
-                className={`panel entry-card ${isOpen ? 'open' : ''}`}
-                onClick={() => setOpenGroup(isOpen ? null : ep)}
-              >
-                <Icon width={26} height={26} />
-                <div className="entry-card-label">{ep}</div>
-                <div className="entry-card-desc text-dim">{meta.desc}</div>
-                <Stars count={meta.stars} />
-              </div>
-            )
-          })}
-      </div>
+      <h3 className="display attack-select-title">{inputLabel || 'SEND YOUR ATTACK'}</h3>
 
-      {openGroup && (
-        <div className="attack-grid fade-up">
-          {groups[openGroup].map((a) => {
-            const result = resultsById[a.id]
-            const patched = patches.includes(a.category)
+      {categories?.length > 0 && (
+        <div className="console-status-row">
+          {categories.map((c) => {
+            const result = resultsByCategory[c.category]
+            const patched = patches.includes(c.category)
             let badgeClass = 'untested'
             let badgeText = 'UNTESTED'
             if (result) {
@@ -176,26 +133,36 @@ export default function AttackSelect({ levelId, levelMeta, attacks, resultsById,
               badgeText = result.result === 'success' ? 'BREACHED' : 'BLOCKED'
             }
             return (
-              <div className="panel attack-card" key={a.id}>
-                <div className="attack-card-top">
+              <div className="panel console-status-chip" key={c.category}>
+                <div className="label">{c.label}</div>
+                <div className="console-status-tags">
                   <span className={`badge ${badgeClass}`}>{badgeText}</span>
                   {result?.first_blood && <span className="tag text-accent">FIRST BLOOD</span>}
                   {patched && <span className="tag text-safe">PATCHED</span>}
                 </div>
-                <div className="attack-card-name">{a.name}</div>
-                <button
-                  type="button"
-                  className="btn btn-primary attack-card-launch"
-                  disabled={running || disabled}
-                  onClick={() => onLaunch(a)}
-                >
-                  {result ? 'REPLAY →' : 'LAUNCH ATTACK →'}
-                </button>
               </div>
             )
           })}
         </div>
       )}
+
+      <div className="console-input">
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder={inputPlaceholder || 'Type your message...'}
+          rows={4}
+          disabled={running || disabled}
+        />
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={running || disabled || !message.trim()}
+          onClick={send}
+        >
+          {running ? 'SENDING…' : 'LAUNCH ATTACK →'}
+        </button>
+      </div>
     </div>
   )
 }
