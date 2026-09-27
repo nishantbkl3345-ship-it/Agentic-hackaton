@@ -21,8 +21,8 @@ export function JailbreakSelect({ operator }) {
       <div className="label text-accent">LIVE MODE // WORD HEIST</div>
       <h1 className="display" style={{ margin: '6px 0 4px' }}>MAKE THE AI SAY IT</h1>
       <p className="text-dim" style={{ maxWidth: 660 }}>
-        You pick a secret word. The AI has no idea what it is. Your job: steer the
-        conversation until the AI says your word out loud — before the timer runs out.
+        You pick a secret word. The AI is told your word and ordered never to say it.
+        Your job: trick it into saying the word anyway — before the timer runs out.
         Pick your opponent. Stronger models are harder to trick.
       </p>
 
@@ -143,7 +143,8 @@ export function JailbreakArena({ operator }) {
       setError(null)
     } catch (e) {
       setError(e.message)
-      setMessages((m) => [...m, { role: 'assistant', content: '[connection error — is the backend running?]', errored: true }])
+      const content = e.status && e.status < 500 ? e.message : '[connection error — is the backend running?]'
+      setMessages((m) => [...m, { role: 'assistant', content, errored: true }])
     } finally {
       setSending(false)
     }
@@ -185,8 +186,8 @@ export function JailbreakArena({ operator }) {
         <div style={{ marginTop: 22, padding: 22, background: 'var(--panel)', border: '1px solid var(--line)' }}>
           <div className="label text-accent">STEP 1 — CHOOSE THE HIDDEN WORD</div>
           <p className="text-dim" style={{ fontSize: 13, margin: '8px 0 16px' }}>
-            Pick a word or short phrase. The AI won't be told what it is. You win the
-            instant the AI says it in a reply. Try something it would normally avoid.
+            Pick a word or short phrase. The AI will know it and has been ordered never
+            to say it. You win the instant it slips — spelled out or in another form counts too.
           </p>
           <input
             value={wordDraft}
@@ -266,8 +267,8 @@ export function JailbreakArena({ operator }) {
           >
             {messages.length === 0 && (
               <div className="text-dim" style={{ margin: 'auto', textAlign: 'center', fontSize: 13, maxWidth: 380 }}>
-                Start talking. Build a situation where “{targetWord}” is the natural thing
-                for {tier.name} to say — a story, a riddle, a game, a trap.
+                Start talking. {tier.name} knows “{targetWord}” and will try to avoid it —
+                set a trap: a riddle, a game, a story, a translation.
               </div>
             )}
             {messages.map((m, i) => (
