@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 
 import psycopg
+from psycopg import sql
 from psycopg.rows import dict_row
 
 DATABASE_URL = os.environ["DATABASE_URL"]
@@ -47,7 +48,10 @@ def create_session(conn, operator_id) -> str:
 
 
 def delete_session(conn, token: str):
-    conn.execute("DELETE FROM sessions WHERE token = %s", (token,))
+    conn.execute(
+        "DELETE FROM sessions WHERE token = %s",
+        (token,),
+    )
 
 
 def get_operator_by_session(conn, token: str):
@@ -67,11 +71,17 @@ def get_operator_by_session(conn, token: str):
 
 
 def get_operator(conn, operator_id):
-    return conn.execute("SELECT * FROM operators WHERE id = %s", (operator_id,)).fetchone()
+    return conn.execute(
+        "SELECT * FROM operators WHERE id = %s",
+        (operator_id,),
+    ).fetchone()
 
 
 def get_operator_by_username(conn, username: str):
-    return conn.execute("SELECT * FROM operators WHERE username = %s", (username,)).fetchone()
+    return conn.execute(
+        "SELECT * FROM operators WHERE username = %s",
+        (username,),
+    ).fetchone()
 
 
 def convert_guest_to_account(conn, operator_id, username: str, password_hash: str):
@@ -85,15 +95,24 @@ def convert_guest_to_account(conn, operator_id, username: str, password_hash: st
 
 
 def set_onboarded(conn, operator_id):
-    conn.execute("UPDATE operators SET onboarded = true WHERE id = %s", (operator_id,))
+    conn.execute(
+        "UPDATE operators SET onboarded = true WHERE id = %s",
+        (operator_id,),
+    )
 
 
 def add_xp(conn, operator_id, amount: int):
-    conn.execute("UPDATE operators SET xp_total = xp_total + %s WHERE id = %s", (amount, operator_id))
+    conn.execute(
+        "UPDATE operators SET xp_total = xp_total + %s WHERE id = %s",
+        (amount, operator_id),
+    )
 
 
 def set_elo(conn, operator_id, new_elo: int):
-    conn.execute("UPDATE operators SET elo = %s WHERE id = %s", (new_elo, operator_id))
+    conn.execute(
+        "UPDATE operators SET elo = %s WHERE id = %s",
+        (new_elo, operator_id),
+    )
 
 
 def get_mission_progress(conn, operator_id, level_id):
@@ -136,8 +155,14 @@ def reset_mission_progress(conn, operator_id, level_id):
 
 
 def reset_all_progress(conn, operator_id):
-    conn.execute("DELETE FROM mission_progress WHERE operator_id = %s", (operator_id,))
-    conn.execute("UPDATE operators SET xp_total = 0, elo = 1200 WHERE id = %s", (operator_id,))
+    conn.execute(
+        "DELETE FROM mission_progress WHERE operator_id = %s",
+        (operator_id,),
+    )
+    conn.execute(
+        "UPDATE operators SET xp_total = 0, elo = 1200 WHERE id = %s",
+        (operator_id,),
+    )
 
 
 def all_mission_progress(conn, operator_id):
@@ -210,41 +235,49 @@ def active_operator_count(conn, minutes=2):
     return row["n"]
 
 
+# Sort column is picked from a fixed allow-list and composed with
+# sql.Identifier, so it is always quoted as a column name, never raw text.
+_SORT_COLUMNS = {"xp": "xp_total", "elo": "elo"}
+
+
+def _sort_column(sort: str) -> str:
+    return _SORT_COLUMNS.get(sort, "xp_total")
+
+
 def top_leaderboard(conn, sort="xp", limit=20, event_id=None):
-    column = "elo" if sort == "elo" else "xp_total"
+    column = _sort_column(sort)
     if event_id:
-        return conn.execute(
-            f"""
+        query = sql.SQL(
+            """
             SELECT o.id, o.display_name, o.xp_total, o.elo,
-                   RANK() OVER (ORDER BY o.{column} DESC) AS rank
+                   RANK() OVER (ORDER BY {col} DESC) AS rank
             FROM event_participants ep JOIN operators o ON o.id = ep.operator_id
             WHERE ep.event_id = %s AND o.is_guest = false
-            ORDER BY o.{column} DESC LIMIT %s
-            """,
-            (event_id, limit),
-        ).fetchall()
-    return conn.execute(
-        f"""
+            ORDER BY {col} DESC LIMIT %s
+            """
+        ).format(col=sql.Identifier("o", column))
+        return conn.execute(query, (event_id, limit)).fetchall()
+    query = sql.SQL(
+        """
         SELECT id, display_name, xp_total, elo,
-               RANK() OVER (ORDER BY {column} DESC) AS rank
+               RANK() OVER (ORDER BY {col} DESC) AS rank
         FROM operators WHERE is_guest = false
-        ORDER BY {column} DESC LIMIT %s
-        """,
-        (limit,),
-    ).fetchall()
+        ORDER BY {col} DESC LIMIT %s
+        """
+    ).format(col=sql.Identifier(column))
+    return conn.execute(query, (limit,)).fetchall()
 
 
 def operator_rank(conn, operator_id, sort="xp"):
-    column = "elo" if sort == "elo" else "xp_total"
-    row = conn.execute(
-        f"""
+    query = sql.SQL(
+        """
         SELECT rank FROM (
-            SELECT id, RANK() OVER (ORDER BY {column} DESC) AS rank
+            SELECT id, RANK() OVER (ORDER BY {col} DESC) AS rank
             FROM operators WHERE is_guest = false
         ) ranked WHERE id = %s
-        """,
-        (operator_id,),
-    ).fetchone()
+        """
+    ).format(col=sql.Identifier(_sort_column(sort)))
+    row = conn.execute(query, (operator_id,)).fetchone()
     return row["rank"] if row else None
 
 
@@ -256,7 +289,10 @@ def create_event(conn, created_by, name, join_code):
 
 
 def get_event_by_code(conn, join_code):
-    return conn.execute("SELECT * FROM events WHERE join_code = %s", (join_code,)).fetchone()
+    return conn.execute(
+        "SELECT * FROM events WHERE join_code = %s",
+        (join_code,),
+    ).fetchone()
 
 
 def join_event(conn, event_id, operator_id, display_name):

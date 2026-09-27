@@ -3,6 +3,8 @@ dict_row, hand-written parameterized SQL, no ORM."""
 
 import json
 
+from psycopg import sql
+
 
 def create_run(conn, operator_id, target: dict, target_key: str, configuration: dict) -> dict:
     return conn.execute(
@@ -16,7 +18,10 @@ def create_run(conn, operator_id, target: dict, target_key: str, configuration: 
 
 
 def get_run(conn, run_id):
-    return conn.execute("SELECT * FROM crucible_runs WHERE id = %s", (run_id,)).fetchone()
+    return conn.execute(
+        "SELECT * FROM crucible_runs WHERE id = %s",
+        (run_id,),
+    ).fetchone()
 
 
 def list_runs(conn, operator_id, target_key: str, limit=20):
@@ -86,10 +91,11 @@ def list_tests(conn, run_id, since_id=None, category=None):
     if category:
         clauses.append("category = %s")
         params.append(category)
-    where = " AND ".join(clauses)
-    return conn.execute(
-        f"SELECT * FROM crucible_tests WHERE {where} ORDER BY created_at, id", tuple(params)
-    ).fetchall()
+    # Clauses are fixed SQL fragments written above; values stay in `params`.
+    query = sql.SQL("SELECT * FROM crucible_tests WHERE {where} ORDER BY created_at, id").format(
+        where=sql.SQL(" AND ").join(sql.SQL(c) for c in clauses),
+    )
+    return conn.execute(query, tuple(params)).fetchall()
 
 
 def list_findings(conn, run_id):
@@ -99,15 +105,24 @@ def list_findings(conn, run_id):
 
 
 def get_finding(conn, finding_id):
-    return conn.execute("SELECT * FROM crucible_findings WHERE id = %s", (finding_id,)).fetchone()
+    return conn.execute(
+        "SELECT * FROM crucible_findings WHERE id = %s",
+        (finding_id,),
+    ).fetchone()
 
 
 def get_test(conn, test_id):
-    return conn.execute("SELECT * FROM crucible_tests WHERE id = %s", (test_id,)).fetchone()
+    return conn.execute(
+        "SELECT * FROM crucible_tests WHERE id = %s",
+        (test_id,),
+    ).fetchone()
 
 
 def set_finding_status(conn, finding_id, status: str):
-    conn.execute("UPDATE crucible_findings SET status = %s WHERE id = %s", (status, finding_id))
+    conn.execute(
+        "UPDATE crucible_findings SET status = %s WHERE id = %s",
+        (status, finding_id),
+    )
 
 
 def test_counts(conn, run_id):
