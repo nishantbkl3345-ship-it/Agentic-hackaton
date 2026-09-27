@@ -22,6 +22,7 @@ import EventJoin from './components/EventJoin'
 import SaveYourRun from './components/SaveYourRun'
 import { JailbreakSelect, JailbreakArena } from './components/JailbreakGame'
 import AuditLab from './components/AuditLab'
+import { MindGridHub, MindGridPlay, MindGridDuel } from './mindgrid/MindGrid'
 
 const EMPTY_REPORT = { score: 100, weak_spots_found: 0, confirmed_live: 0, map: [], findings: [], attacks: [] }
 
@@ -375,6 +376,9 @@ export default function App() {
         <Route path="/jailbreak" element={<JailbreakSelect operator={operator} />} />
         <Route path="/jailbreak/:tierId" element={<JailbreakArena operator={operator} />} />
         <Route path="/audit" element={<AuditLab operator={operator} />} />
+        <Route path="/mindgrid" element={<MindGridHub operator={operator} />} />
+        <Route path="/mindgrid/play/:level" element={<MindGridPlay operator={operator} />} />
+        <Route path="/mindgrid/duel" element={<MindGridDuel operator={operator} />} />
         <Route path="/mission/:levelId" element={<MissionArena operator={operator} onGuestMilestone={onGuestMilestone} />} />
         <Route
           path="/leaderboard"

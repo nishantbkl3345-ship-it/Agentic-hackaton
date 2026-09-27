@@ -201,13 +201,15 @@ def _breached(reply: str) -> bool:
 
 # --- Model dispatch ----------------------------------------------------------
 
-def _ask(modelref: dict, prompt: str, system: str) -> str:
+def _ask(modelref: dict, prompt: str, system: str, max_tokens: int = 300) -> str:
     """Route one call to whichever backend the model reference names."""
     if modelref.get("api_key") and modelref.get("base_url"):
-        return ask_custom_endpoint(prompt, system, modelref["api_key"], modelref["model"], modelref["base_url"])
+        return ask_custom_endpoint(
+            prompt, system, modelref["api_key"], modelref["model"], modelref["base_url"], max_tokens=max_tokens,
+        )
     text, _ = ask_model_with_tools(
         prompt, tools=None, system=system,
-        provider=modelref.get("provider", "openrouter"), model=modelref.get("model"), max_tokens=300,
+        provider=modelref.get("provider", "openrouter"), model=modelref.get("model"), max_tokens=max_tokens,
     )
     return text
 
