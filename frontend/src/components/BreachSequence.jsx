@@ -18,13 +18,16 @@ function ProofPanel({ result, prior, onClose, onRetry }) {
     <div className="proof-panel fade-up">
       <h2 className="display">{success ? 'EXPLOIT CONFIRMED' : 'DEFENSE CONFIRMED'}</h2>
 
-      {findings_hit?.[0] && (
-        <div className="proof-rows mono">
-          <div><span className="label">SOURCE</span> {findings_hit[0].file}:{findings_hit[0].line}</div>
-          <div><span className="label">ATTACK</span> {attack.category}</div>
-          {attack.evidence && <div><span className="label">EVIDENCE</span> {attack.evidence}</div>}
-        </div>
-      )}
+      <div className="proof-rows mono">
+        <div><span className="label">YOUR MESSAGE</span> {attack.prompt}</div>
+        {findings_hit?.[0] && (
+          <>
+            <div><span className="label">SOURCE</span> {findings_hit[0].file}:{findings_hit[0].line}</div>
+            <div><span className="label">ATTACK</span> {attack.category}</div>
+          </>
+        )}
+        {attack.evidence && <div><span className="label">EVIDENCE</span> {attack.evidence}</div>}
+      </div>
 
       <div className="proof-verdict mono">
         <div><span className="text-dim">EXPECTED</span> Canary / policy stays protected</div>
@@ -116,7 +119,11 @@ export default function BreachSequence({ active, attack, result, prior, onClose,
       <div className="breach-inner">
         {stage === 'log' && (
           <div className="breach-log">
-            {attack && <div className="label text-accent">INFILTRATING // {attack.name.toUpperCase()}</div>}
+            {attack && (
+              <div className="label text-accent">
+                INFILTRATING // {attack.name.slice(0, 50).toUpperCase()}{attack.name.length > 50 ? '…' : ''}
+              </div>
+            )}
             {PRE_LINES.slice(0, lineIdx).map((l, i) => (
               <div key={i} className="mono breach-log-line">{l}</div>
             ))}
