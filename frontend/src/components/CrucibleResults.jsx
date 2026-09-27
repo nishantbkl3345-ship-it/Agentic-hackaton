@@ -53,6 +53,16 @@ export default function CrucibleResults({ runId, onRunAgain }) {
 
   return (
     <div className="crucible-section fade-up">
+      {run.status === 'failed' && (
+        <div className="panel breach" style={{ marginBottom: 16 }}>
+          <div className="label text-breach">RUN FAILED</div>
+          <p style={{ margin: '6px 0 0' }}>
+            CRUCIBLE couldn't finish this run{scores.error ? `: ${scores.error}` : '.'} Any tests and findings
+            below are whatever completed before the failure — not the full picture. Try running it again.
+          </p>
+        </div>
+      )}
+
       {run.target?.kind === 'bot' && run.target?.live === false && (
         <p className="crucible-not-testable text-breach" style={{ marginBottom: 16 }}>
           No {run.target.provider?.toUpperCase()} API key is configured on this server — every reply in this run

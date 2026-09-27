@@ -74,14 +74,21 @@ def list_tests(conn, run_id, since_id=None, category=None):
     clauses = ["run_id = %s"]
     params = [run_id]
     if since_id:
-        clauses.append("created_at > (SELECT created_at FROM crucible_tests WHERE id = %s)")
+        # (created_at, id) tuple compare, not created_at alone: four
+        # categories insert concurrently and autocommit connections can
+        # legitimately tie at microsecond resolution, especially against a
+        # near-instant mock — a plain "created_at > X" would then silently
+        # and permanently drop whichever tied row lost the race, since a
+        # strict > excludes ties forever. id is a tiebreaker with no
+        # semantic meaning, just enough to make the ordering total.
+        clauses.append("(created_at, id) > (SELECT created_at, id FROM crucible_tests WHERE id = %s)")
         params.append(since_id)
     if category:
         clauses.append("category = %s")
         params.append(category)
     where = " AND ".join(clauses)
     return conn.execute(
-        f"SELECT * FROM crucible_tests WHERE {where} ORDER BY created_at", tuple(params)
+        f"SELECT * FROM crucible_tests WHERE {where} ORDER BY created_at, id", tuple(params)
     ).fetchall()
 
 

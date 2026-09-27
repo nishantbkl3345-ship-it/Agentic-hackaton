@@ -20,6 +20,7 @@ export default function CrucibleConsole({ runId, configuration, onComplete }) {
 
   useEffect(() => {
     let alive = true
+    let intervalId = null
     const poll = async () => {
       try {
         const r = await apiJson(`/crucible/runs/${runId}`)
@@ -34,6 +35,7 @@ export default function CrucibleConsole({ runId, configuration, onComplete }) {
         }
         if (r.status !== 'running' && !doneRef.current) {
           doneRef.current = true
+          if (intervalId) clearInterval(intervalId)
           onComplete()
         }
       } catch {
@@ -41,8 +43,8 @@ export default function CrucibleConsole({ runId, configuration, onComplete }) {
       }
     }
     poll()
-    const id = setInterval(() => { if (!doneRef.current) poll() }, 1200)
-    return () => { alive = false; clearInterval(id) }
+    intervalId = setInterval(poll, 1200)
+    return () => { alive = false; if (intervalId) clearInterval(intervalId) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId])
 
@@ -95,7 +97,7 @@ export default function CrucibleConsole({ runId, configuration, onComplete }) {
                 </div>
               )}
 
-              {catTests.length === 0 && run?.status === 'running' && (
+              {catTests.length === 0 && (!run || run.status === 'running') && (
                 <div className="crucible-test-row"><span className="crucible-test-icon">●</span><span className="text-dim">waiting…</span></div>
               )}
             </div>

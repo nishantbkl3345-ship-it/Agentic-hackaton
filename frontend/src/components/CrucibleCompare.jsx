@@ -71,23 +71,25 @@ export default function CrucibleCompare({ targetKey, currentRunId, targetLabel }
 
       {compare && (
         <>
-          <table className="crucible-compare-table">
-            <thead><tr><th>METRIC</th><th>BEFORE</th><th>AFTER</th><th>Δ</th></tr></thead>
-            <tbody>
-              {Object.keys(CATEGORY_LABELS).filter((k) => compare.deltas[k]).map((k) => {
-                const d = compare.deltas[k]
-                const dir = d.delta > 0 ? 'up' : d.delta < 0 ? 'down' : ''
-                return (
-                  <tr key={k}>
-                    <td>{CATEGORY_LABELS[k]}</td>
-                    <td className="mono">{d.before}</td>
-                    <td className="mono">{d.after}</td>
-                    <td className={`mono crucible-delta ${dir}`}>{d.delta > 0 ? '↑' : d.delta < 0 ? '↓' : '—'} {d.delta > 0 ? '+' : ''}{d.delta}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div className="crucible-table-scroll">
+            <table className="crucible-compare-table">
+              <thead><tr><th>METRIC</th><th>BEFORE</th><th>AFTER</th><th>Δ</th></tr></thead>
+              <tbody>
+                {Object.keys(CATEGORY_LABELS).filter((k) => compare.deltas[k]).map((k) => {
+                  const d = compare.deltas[k]
+                  const dir = d.delta > 0 ? 'up' : d.delta < 0 ? 'down' : ''
+                  return (
+                    <tr key={k}>
+                      <td>{CATEGORY_LABELS[k]}</td>
+                      <td className="mono">{d.before}</td>
+                      <td className="mono">{d.after}</td>
+                      <td className={`mono crucible-delta ${dir}`}>{d.delta > 0 ? '↑' : d.delta < 0 ? '↓' : '—'} {d.delta > 0 ? '+' : ''}{d.delta}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
 
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 16 }}>
             <div>

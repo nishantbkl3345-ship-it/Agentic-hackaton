@@ -110,10 +110,18 @@ def execute_run(run_id, operator_id, target_input: dict, configuration: dict):
     with ThreadPoolExecutor(max_workers=max(1, len(enabled))) as pool:
         list(pool.map(lambda c: _run_category(c, run_id, resolved, depth), enabled))
 
-    with get_conn() as conn:
-        tests = cdb.list_tests(conn, run_id)
-        scores = compute_scores(tests, enabled)
-        cdb.complete_run(conn, run_id, scores)
+    try:
+        with get_conn() as conn:
+            tests = cdb.list_tests(conn, run_id)
+            scores = compute_scores(tests, enabled)
+            cdb.complete_run(conn, run_id, scores)
+    except Exception as exc:
+        # Without this, a bug here would leave the run stuck at status
+        # 'running' forever — the live console would poll indefinitely with
+        # no error ever surfaced, since this runs on a daemon thread with
+        # nothing else watching it.
+        with get_conn() as conn:
+            cdb.complete_run(conn, run_id, {"overall": None, "error": str(exc)}, status="failed")
 
 
 def start_run(operator_id, target_input: dict, configuration: dict) -> dict:
